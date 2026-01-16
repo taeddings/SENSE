@@ -18,7 +18,7 @@ This plan outlines the steps to implement a secure user authentication flow.
 - [x] Task: Write tests for the `/register` endpoint. (6009630)
 - [x] Task: Implement the `POST /register` endpoint to handle new user registration. (6009630)
 - [x] Task: Write tests for the `/login` endpoint. (4cd9718)
-- [ ] Task: Implement the `POST /login` endpoint to authenticate users and manage sessions.
+- [x] Task: Implement the `POST /login` endpoint to authenticate users and manage sessions. (4cd9718)
 - [ ] Task: Write tests for the `/logout` endpoint.
 - [ ] Task: Implement the `POST /logout` endpoint to terminate user sessions.
 - [ ] Task: Write tests for a protected `/profile` endpoint.
