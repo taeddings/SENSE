@@ -22,7 +22,7 @@ This plan outlines the steps to implement a secure user authentication flow.
 - [x] Task: Write tests for the `/logout` endpoint. (a9033a7)
 - [x] Task: Implement the `POST /logout` endpoint to terminate user sessions. (a9033a7)
 - [x] Task: Write tests for a protected `/profile` endpoint. (84cbe79)
-- [ ] Task: Implement a protected `GET /profile` endpoint that requires authentication.
+- [x] Task: Implement a protected `GET /profile` endpoint that requires authentication. (84cbe79)
 - [ ] Task: Conductor - User Manual Verification 'API Endpoint Implementation' (Protocol in workflow.md)
 
 ---
