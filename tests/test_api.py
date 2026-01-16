@@ -2,7 +2,6 @@ import unittest
 import json
 import os
 from sense_v2.api.app import create_app
-from sense_v2.database.database import initialize_database
 from sense_v2.models.user import User
 
 class TestApi(unittest.TestCase):
@@ -11,8 +10,13 @@ class TestApi(unittest.TestCase):
         """Set up a clean database and a test client for each test."""
         if os.path.exists('sense.db'):
             os.remove('sense.db')
-        initialize_database()
-        self.app = create_app()
+        
+        # Initialize database using the CLI command
+        app = create_app()
+        runner = app.test_cli_runner()
+        runner.invoke(args=['init-db'])
+
+        self.app = app
         self.client = self.app.test_client()
 
     def tearDown(self):

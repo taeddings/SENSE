@@ -1,10 +1,14 @@
 from flask import Flask, request, jsonify, session
 from sense_v2.models.user import User
 from sense_v2.utils.security import hash_password, verify_password
+from sense_v2 import cli
+from sense_v2.config import Config
 
 def create_app():
     app = Flask(__name__)
-    app.config['SECRET_KEY'] = 'super-secret'
+    app.config.from_object(Config)
+
+    cli.init_app(app)
 
     @app.route('/register', methods=['POST'])
     def register():
