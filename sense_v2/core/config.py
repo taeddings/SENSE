@@ -140,6 +140,19 @@ class MemoryConfig:
 
 
 @dataclass
+class EngramConfig:
+    """Configuration for the Engram Conditional Memory architecture."""
+    enabled: bool = True
+    storage_path: str = "data/engram_table.dat"
+    shadow_map_path: str = "data/shadow_map.npy"
+    table_size: int = 10_000_000
+    engram_dim: int = 1024
+    num_heads: int = 8
+    ngram_orders: List[int] = field(default_factory=lambda: [2, 3])
+    layer_indices: List[int] = field(default_factory=lambda: [2, 15])
+
+
+@dataclass
 class Config:
     """
     Master configuration for SENSE-v2 framework.
@@ -149,6 +162,7 @@ class Config:
     evolution: EvolutionConfig = field(default_factory=EvolutionConfig)
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
+    engram: EngramConfig = field(default_factory=EngramConfig)
 
     # Global settings
     log_level: str = "INFO"
@@ -177,12 +191,14 @@ class Config:
         evolution = EvolutionConfig(**data.get("evolution", {})) if "evolution" in data else EvolutionConfig()
         orchestration = OrchestrationConfig(**data.get("orchestration", {})) if "orchestration" in data else OrchestrationConfig()
         memory = MemoryConfig(**data.get("memory", {})) if "memory" in data else MemoryConfig()
+        engram = EngramConfig(**data.get("engram", {})) if "engram" in data else EngramConfig()
 
         return cls(
             hardware=hardware,
             evolution=evolution,
             orchestration=orchestration,
             memory=memory,
+            engram=engram,
             log_level=data.get("log_level", "INFO"),
             log_file=data.get("log_file", "sense_v2.log"),
             dev_log_file=data.get("dev_log_file", "dev_log.json"),
