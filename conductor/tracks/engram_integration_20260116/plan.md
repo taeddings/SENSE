@@ -28,7 +28,7 @@
     - [x] Implement: Logic to load NumPy map in `mmap_mode='r'`.
     - [x] Implement: `__call__` method for lookup and tensor conversion.
     - [x] Refactor: Review and refactor `EngramTokenizer`.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: The Shadow Tokenizer Engine' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: The Shadow Tokenizer Engine' (Protocol in workflow.md) [checkpoint: a50c3ff]
 
 ## Phase 3: Scalable Storage Backend
 - [ ] Task: Create `sense_v2/engram/storage.py`
