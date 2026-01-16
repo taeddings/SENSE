@@ -31,5 +31,21 @@ class TestApi(unittest.TestCase):
         self.assertEqual(data['email'], 'test@example.com')
         self.assertIn('id', data)
 
+    def test_login_user(self):
+        """Test user login."""
+        # First, register a user
+        self.client.post('/register', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        # Now, try to login
+        response = self.client.post('/login', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        self.assertEqual(response.status_code, 200)
+
 if __name__ == '__main__':
     unittest.main()
