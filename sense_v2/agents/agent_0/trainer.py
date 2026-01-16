@@ -21,6 +21,7 @@ from sense_v2.core.config import EvolutionConfig
 from sense_v2.core.schemas import RewardSignal
 from sense_v2.agents.agent_0.curriculum import CurriculumAgent, CurriculumTask
 from sense_v2.agents.agent_0.executor import ExecutorAgent, ExecutionTrace
+from sense_v2.utils.dev_log import DevLog, StateLogger
 
 # Optional imports for enhanced rewards
 try:
@@ -329,10 +330,15 @@ class GRPOTrainer:
         tool_reward_cap: int = 4,
         diversity_penalty_weight: float = 0.1,
         enable_enhanced_rewards: bool = True,
+        dev_log: Optional[DevLog] = None,
     ):
         self.curriculum = curriculum_agent
         self.config = config or EvolutionConfig()
         self.logger = logging.getLogger(self.__class__.__name__)
+
+        # Initialize DevLog and StateLogger
+        self.dev_log = dev_log or DevLog()
+        self.state_logger = StateLogger(self.dev_log)
 
         # Population of executors
         self.executors: List[ExecutorAgent] = []
@@ -431,115 +437,148 @@ class GRPOTrainer:
         4. Compute group advantages
         5. Update executor weights
         """
-        self.current_iteration += 1
+        try:
+            self.current_iteration += 1
 
-        # Generate groups of tasks
-        groups: List[GRPOGroup] = []
-        iteration_reward_components: List[Dict[str, Any]] = []
+            # Generate groups of tasks
+            groups: List[GRPOGroup] = []
+            iteration_reward_components: List[Dict[str, Any]] = []
 
-        for g in range(self.config.grpo_group_size):
-            task = await self.curriculum.generate_task()
-            group = GRPOGroup(group_id=f"iter{self.current_iteration}_group{g}")
-
-            # First pass: collect all outputs for diversity calculation
-            executor_results: List[Tuple[int, RewardSignal, ExecutionTrace]] = []
-            all_outputs: List[str] = []
-
-            for idx, executor in enumerate(self.executors):
-                base_reward, trace = await executor.execute_task(task)
-                executor_results.append((idx, base_reward, trace))
-                # Collect output for diversity penalty calculation
-                output_str = trace.output if hasattr(trace, 'output') else str(trace)
-                all_outputs.append(output_str)
-
-            # Second pass: compute enhanced rewards with diversity
-            for result_idx, (executor_idx, base_reward, trace) in enumerate(executor_results):
-                output_str = all_outputs[result_idx]
-
-                # Compute enhanced reward with all components
-                reward_components = self.compute_enhanced_reward(
-                    base_reward=base_reward.value,
-                    output=output_str,
-                    all_outputs=all_outputs,
-                    output_index=result_idx,
-                )
-
-                # Track reward components for analysis
-                iteration_reward_components.append({
-                    "iteration": self.current_iteration,
-                    "group": g,
-                    "executor_id": executor_idx,
-                    "components": reward_components.to_dict(),
-                })
-
-                sample = GRPOSample(
-                    executor_id=executor_idx,
-                    task=task,
-                    trace=trace,
-                    reward=reward_components.total,  # Use enhanced total reward
-                )
-                group.samples.append(sample)
-
-            # Compute advantages within group
-            group.compute_advantages()
-            groups.append(group)
-
-            # Update curriculum based on aggregate results
-            avg_reward = RewardSignal(
-                value=group.mean_reward,
-                binary=False,
-                source="grpo_group",
+            # Log current generation and curriculum stage
+            curriculum_status = await self.curriculum.get_curriculum_status()
+            self.state_logger.log_evolution_step(
+                generation=self.current_iteration,
+                best_fitness=self.best_fitness_ever,
+                average_fitness=0.0, # Will be updated later
+                curriculum_stage=curriculum_status.get("current_stage", 0),
+                total_tasks_completed=len(self.curriculum.task_history),
+                success_rate=curriculum_status.get("overall_success_rate", 0.0),
             )
-            await self.curriculum.process_result(task, avg_reward)
 
-        # Store reward component history for analysis
-        self.reward_component_history.extend(iteration_reward_components)
+            for g in range(self.config.grpo_group_size):
+                task = await self.curriculum.generate_task()
+                group = GRPOGroup(group_id=f"iter{self.current_iteration}_group{g}")
 
-        # Aggregate metrics
-        all_rewards = [s.reward for g in groups for s in g.samples]
-        all_advantages = [s.advantage for g in groups for s in g.samples]
+                # First pass: collect all outputs for diversity calculation
+                executor_results: List[Tuple[int, RewardSignal, ExecutionTrace]] = []
+                all_outputs: List[str] = []
 
-        executor_rewards = {i: [] for i in range(len(self.executors))}
-        for group in groups:
-            for sample in group.samples:
-                executor_rewards[sample.executor_id].append(sample.reward)
+                for idx, executor in enumerate(self.executors):
+                    base_reward, trace = await executor.execute_task(task)
+                    executor_results.append((idx, base_reward, trace))
+                    # Collect output for diversity penalty calculation
+                    output_str = trace.output if hasattr(trace, 'output') else str(trace)
+                    all_outputs.append(output_str)
 
-        avg_executor_rewards = {
-            i: np.mean(rewards) for i, rewards in executor_rewards.items()
-        }
+                # Second pass: compute enhanced rewards with diversity
+                for result_idx, (executor_idx, base_reward, trace) in enumerate(executor_results):
+                    output_str = all_outputs[result_idx]
 
-        best_id = max(avg_executor_rewards, key=avg_executor_rewards.get)
-        worst_id = min(avg_executor_rewards, key=avg_executor_rewards.get)
+                    # Compute enhanced reward with all components
+                    reward_components = self.compute_enhanced_reward(
+                        base_reward=base_reward.value,
+                        output=output_str,
+                        all_outputs=all_outputs,
+                        output_index=result_idx,
+                    )
 
-        # Selection and evolution
-        await self._evolve_population(groups)
+                    # Track reward components for analysis
+                    iteration_reward_components.append({
+                        "iteration": self.current_iteration,
+                        "group": g,
+                        "executor_id": executor_idx,
+                        "components": reward_components.to_dict(),
+                    })
 
-        # Compute KL divergence estimate
-        kl_div = self._estimate_kl_divergence(groups)
+                    sample = GRPOSample(
+                        executor_id=executor_idx,
+                        task=task,
+                        trace=trace,
+                        reward=reward_components.total,  # Use enhanced total reward
+                    )
+                    group.samples.append(sample)
 
-        metrics = TrainingMetrics(
-            iteration=self.current_iteration,
-            groups_processed=len(groups),
-            mean_reward=np.mean(all_rewards),
-            mean_advantage=np.mean(all_advantages),
-            best_executor_id=best_id,
-            worst_executor_id=worst_id,
-            kl_divergence=kl_div,
-        )
+                    # Log task completion for each executor
+                    self.state_logger.log_task_completion(
+                        agent_name=f"executor_{executor_idx}",
+                        success=trace.success,
+                        fitness=reward_components.total,
+                    )
 
-        self.training_history.append(metrics)
+                # Compute advantages within group
+                group.compute_advantages()
+                groups.append(group)
 
-        # Track best fitness
-        if metrics.mean_reward > self.best_fitness_ever:
-            self.best_fitness_ever = metrics.mean_reward
+                # Update curriculum based on aggregate results
+                avg_reward = RewardSignal(
+                    value=group.mean_reward,
+                    binary=False,
+                    source="grpo_group",
+                )
+                await self.curriculum.process_result(task, avg_reward, output=all_outputs[0]) # Assuming first output is representative
 
-        self.logger.info(
-            f"Iteration {self.current_iteration}: "
-            f"mean_reward={metrics.mean_reward:.4f}, "
-            f"best_executor={best_id}"
-        )
+            # Store reward component history for analysis
+            self.reward_component_history.extend(iteration_reward_components)
 
-        return metrics
+            # Aggregate metrics
+            all_rewards = [s.reward for g in groups for s in g.samples]
+            all_advantages = [s.advantage for g in groups for s in g.samples]
+
+            executor_rewards = {i: [] for i in range(len(self.executors))}
+            for group in groups:
+                for sample in group.samples:
+                    executor_rewards[sample.executor_id].append(sample.reward)
+
+            avg_executor_rewards = {
+                i: np.mean(rewards) for i, rewards in executor_rewards.items()
+            }
+
+            best_id = max(avg_executor_rewards, key=avg_executor_rewards.get)
+            worst_id = min(avg_executor_rewards, key=avg_executor_rewards.get)
+
+            # Selection and evolution
+            await self._evolve_population(groups)
+
+            # Compute KL divergence estimate
+            kl_div = self._estimate_kl_divergence(groups)
+
+            metrics = TrainingMetrics(
+                iteration=self.current_iteration,
+                groups_processed=len(groups),
+                mean_reward=np.mean(all_rewards),
+                mean_advantage=np.mean(all_advantages),
+                best_executor_id=best_id,
+                worst_executor_id=worst_id,
+                kl_divergence=kl_div,
+            )
+
+            self.training_history.append(metrics)
+
+            # Track best fitness
+            if metrics.mean_reward > self.best_fitness_ever:
+                self.best_fitness_ever = metrics.mean_reward
+
+            self.logger.info(
+                f"Iteration {self.current_iteration}: "
+                f"mean_reward={metrics.mean_reward:.4f}, "
+                f"best_executor={best_id}"
+            )
+
+            # Update overall average fitness in DevLog
+            self.state_logger.log_evolution_step(
+                generation=self.current_iteration,
+                average_fitness=metrics.mean_reward,
+                best_fitness=self.best_fitness_ever,
+            )
+
+            return metrics
+        except Exception as e:
+            self.logger.error(f"Error during training step: {e}", exc_info=True)
+            self.state_logger.log_error(
+                error=f"Training step failed: {e}",
+                context={"iteration": self.current_iteration}
+            )
+            raise
 
     async def _evolve_population(self, groups: List[GRPOGroup]) -> None:
         """

@@ -22,7 +22,7 @@ class TestTerminalToolSchema:
 
         assert schema.name == "terminal_exec"
         assert schema.category == "terminal"
-        assert len(schema.parameters) == 3
+        assert len(schema.parameters) == 6
 
         # Check command parameter
         cmd_param = next(p for p in schema.parameters if p.name == "command")
@@ -39,6 +39,23 @@ class TestTerminalToolSchema:
         # Check cwd parameter
         cwd_param = next(p for p in schema.parameters if p.name == "cwd")
         assert cwd_param.required is False
+
+        # Check session parameter
+        session_param = next(p for p in schema.parameters if p.name == "session")
+        assert session_param.required is False
+        assert session_param.param_type == "string"
+        assert session_param.default == "default"
+
+        # Check ssh_host parameter
+        ssh_host_param = next(p for p in schema.parameters if p.name == "ssh_host")
+        assert ssh_host_param.required is False
+        assert ssh_host_param.param_type == "string"
+
+        # Check ssh_user parameter
+        ssh_user_param = next(p for p in schema.parameters if p.name == "ssh_user")
+        assert ssh_user_param.required is False
+        assert ssh_user_param.param_type == "string"
+        assert ssh_user_param.default == "root"
 
     def test_terminal_interactive_schema(self):
         """Verify schema properties for TerminalInteractiveTool."""

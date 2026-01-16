@@ -9,7 +9,7 @@ Based on agent-zero extension patterns:
 - before_tool_call/after_tool_call: Tool execution hooks
 """
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type, Callable, Awaitable, TYPE_CHECKING
 from enum import Enum
@@ -87,7 +87,7 @@ class ExtensionContext:
 # Extension Base Class
 # =============================================================================
 
-class Extension:
+class Extension(ABC):
     """
     Base class for all extensions.
 

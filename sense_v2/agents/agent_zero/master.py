@@ -20,6 +20,7 @@ import uuid
 from sense_v2.core.base import BaseAgent, BaseTool, AgentState
 from sense_v2.core.schemas import AgentMessage, MessageRole, ToolResult
 from sense_v2.core.config import OrchestrationConfig
+from sense_v2.utils.dev_log import DevLog, StateLogger
 
 
 # =============================================================================
@@ -152,6 +153,7 @@ class MasterAgent(BaseAgent):
         sub_agents: Optional[Dict[str, BaseAgent]] = None,
         profile: Optional[AgentProfile] = None,
         superior: Optional["MasterAgent"] = None,
+        dev_log: Optional[DevLog] = None,
     ):
         super().__init__(name="MasterAgent", config=config)
         self.config = config or OrchestrationConfig()
@@ -187,6 +189,11 @@ class MasterAgent(BaseAgent):
         if superior:
             superior._subordinate = self
             self._agent_number = superior._agent_number + 1
+
+        # Initialize DevLog and StateLogger
+        self.dev_log = dev_log or DevLog()
+        self.state_logger = StateLogger(self.dev_log)
+        self.state_logger.dev_log.update_agent(name=self.agent_name, status="initialized", metadata={"profile": self._profile.name})
 
     def register_sub_agent(self, name: str, agent: BaseAgent) -> None:
         """Register a sub-agent for delegation."""
@@ -310,6 +317,7 @@ class MasterAgent(BaseAgent):
             self._superior.set_intervention(message, source, broadcast_up - 1)
 
         self.logger.debug(f"{self.agent_name} received intervention from {source}")
+        self.state_logger.dev_log.update_agent(name=self.agent_name, status="intervened", metadata={"intervention_source": source, "message": message})
 
     async def handle_intervention(self, current_progress: str = "") -> bool:
         """
@@ -334,6 +342,7 @@ class MasterAgent(BaseAgent):
             self.logger.info(
                 f"{self.agent_name} handling intervention from {intervention.source}"
             )
+            self.state_logger.dev_log.update_agent(name=self.agent_name, status="handling_intervention")
 
             # Store current progress if any
             if current_progress:
@@ -353,11 +362,13 @@ class MasterAgent(BaseAgent):
         """Pause agent execution."""
         self._is_paused = True
         self.logger.info(f"{self.agent_name} paused")
+        self.state_logger.dev_log.update_agent(name=self.agent_name, status="paused")
 
     def resume(self) -> None:
         """Resume agent execution."""
         self._is_paused = False
         self.logger.info(f"{self.agent_name} resumed")
+        self.state_logger.dev_log.update_agent(name=self.agent_name, status="resumed")
 
     def reset_subordinate(self) -> None:
         """Reset/clear the current subordinate agent."""
@@ -479,12 +490,35 @@ class MasterAgent(BaseAgent):
             result = await self._execute_delegation(task)
             task.result = result
             task.status = "completed"
+            self.state_logger.log_task_completion(
+                agent_name=self.agent_name,
+                success=True,
+                fitness=1.0, # Assuming successful task contributes positively
+            )
         except asyncio.TimeoutError:
             task.status = "timeout"
             task.error = "Task execution timed out"
+            self.state_logger.log_error(
+                error=f"Task {task.task_id} timed out",
+                agent_name=self.agent_name,
+            )
+            self.state_logger.log_task_completion(
+                agent_name=self.agent_name,
+                success=False,
+                fitness=0.0,
+            )
         except Exception as e:
             task.status = "failed"
             task.error = str(e)
+            self.state_logger.log_error(
+                error=f"Task {task.task_id} failed: {e}",
+                agent_name=self.agent_name,
+            )
+            self.state_logger.log_task_completion(
+                agent_name=self.agent_name,
+                success=False,
+                fitness=0.0,
+            )
 
             # Retry logic
             if task.retries < self.config.max_retries:
@@ -677,11 +711,23 @@ class MasterAgent(BaseAgent):
         """Main agent loop - process task queue."""
         self._is_running = True
         self.logger.info("MasterAgent started")
+        self.state_logger.dev_log.update_agent(name=self.agent_name, status="running")
 
-        while self._is_running:
-            # Process queued tasks
-            if self.task_queue:
-                task = self.task_queue.pop(0)
-                await self.delegate_task(task.description, task.priority)
+        try:
+            while self._is_running:
+                # Process queued tasks
+                if self.task_queue:
+                    task = self.task_queue.pop(0)
+                    await self.delegate_task(task.description, task.priority)
 
-            await asyncio.sleep(0.1)
+                await asyncio.sleep(0.1)
+        except Exception as e:
+            self.logger.error(f"MasterAgent encountered an error: {e}", exc_info=True)
+            self.state_logger.log_error(
+                error=f"MasterAgent runtime error: {e}",
+                agent_name=self.agent_name,
+            )
+        finally:
+            self._is_running = False
+            self.logger.info("MasterAgent stopped")
+            self.state_logger.dev_log.update_agent(name=self.agent_name, status="stopped")
