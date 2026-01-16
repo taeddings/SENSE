@@ -4,12 +4,12 @@ This plan outlines the steps to implement a secure user authentication flow.
 
 ---
 
-## Phase 1: Backend Foundation
+## Phase 1: Backend Foundation [checkpoint: 0c16e3e]
 
 - [x] Task: Design and create the `users` table in the database with columns for `id`, `email`, and `password_hash`. (9195fa3)
 - [x] Task: Implement the `User` model in the application to interact with the `users` table. (4558619)
 - [x] Task: Implement a secure password hashing and verification mechanism using `bcrypt`. (1d49fa3)
-- [ ] Task: Conductor - User Manual Verification 'Backend Foundation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Backend Foundation' (Protocol in workflow.md)
 
 ---
 
