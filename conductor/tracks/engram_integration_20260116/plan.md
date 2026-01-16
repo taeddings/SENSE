@@ -14,20 +14,20 @@
 
 ## Phase 2: The Shadow Tokenizer Engine
 - [ ] Task: Create `sense_v2/engram/tokenizer.py`
-    - [ ] Create `sense_v2/engram/tokenizer.py` file
-- [ ] Task: Implement `EngramTokenizerBuilder` class
-    - [ ] Write Failing Tests: Add tests for `EngramTokenizerBuilder` initialization, vocabulary iteration, normalization logic (NFKC, lowercase, strip), and saving the mapping to disk.
-    - [ ] Implement: Define `EngramTokenizerBuilder` class.
-    - [ ] Implement: Logic to accept HuggingFace model name.
-    - [ ] Implement: Logic to iterate vocabulary and build surjective mapping with normalization.
-    - [ ] Implement: Logic to save mapping as NumPy array.
-    - [ ] Refactor: Review and refactor `EngramTokenizerBuilder`.
-- [ ] Task: Implement `EngramTokenizer` class
-    - [ ] Write Failing Tests: Add tests for `EngramTokenizer` initialization (loading mmap), and the `__call__` method for performing lookups and returning compressed tensors.
-    - [ ] Implement: Define `EngramTokenizer` class.
-    - [ ] Implement: Logic to load NumPy map in `mmap_mode='r'`.
-    - [ ] Implement: `__call__` method for lookup and tensor conversion.
-    - [ ] Refactor: Review and refactor `EngramTokenizer`.
+    - [x] Create `sense_v2/engram/tokenizer.py` file
+- [x] Task: Implement `EngramTokenizerBuilder` class
+    - [x] Write Failing Tests: Add tests for `EngramTokenizerBuilder` initialization, vocabulary iteration, normalization logic (NFKC, lowercase, strip), and saving the mapping to disk.
+    - [x] Implement: Define `EngramTokenizerBuilder` class.
+    - [x] Implement: Logic to accept HuggingFace model name.
+    - [x] Implement: Logic to iterate vocabulary and build surjective mapping with normalization.
+    - [x] Implement: Logic to save mapping as NumPy array.
+    - [x] Refactor: Review and refactor `EngramTokenizerBuilder`.
+- [x] Task: Implement `EngramTokenizer` class
+    - [x] Write Failing Tests: Add tests for `EngramTokenizer` initialization (loading mmap), and the `__call__` method for performing lookups and returning compressed tensors.
+    - [x] Implement: Define `EngramTokenizer` class.
+    - [x] Implement: Logic to load NumPy map in `mmap_mode='r'`.
+    - [x] Implement: `__call__` method for lookup and tensor conversion.
+    - [x] Refactor: Review and refactor `EngramTokenizer`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: The Shadow Tokenizer Engine' (Protocol in workflow.md)
 
 ## Phase 3: Scalable Storage Backend
