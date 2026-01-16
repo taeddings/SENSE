@@ -27,6 +27,8 @@ SENSE v2 is a next-generation, self-evolving AI framework designed for complex, 
 *   **Self-Correction and Evolution:** The framework incorporates self-correction loops, allowing agents to learn from their mistakes. The evolutionary nature of Agent 0 ensures that the system's core models continuously improve.
 *   **Hardware Optimization:** The architecture is designed with modern hardware in mind, specifically targeting Unified Memory Architectures (UMA) and AMD's RDNA 3.5 for high-performance computing.
 
+*   **User Authentication:** Secure user registration, login, logout, and session management to protect user-specific data and functionalities.
+
 ## 5. Non-Functional Requirements
 
 *   **Modularity:** The system is designed to be highly modular, allowing for the easy addition of new agents, tools, and memory components.
