@@ -3,6 +3,7 @@ import json
 import os
 from sense_v2.api.app import create_app
 from sense_v2.database.database import initialize_database
+from sense_v2.models.user import User
 
 class TestApi(unittest.TestCase):
 
@@ -75,14 +76,41 @@ class TestApi(unittest.TestCase):
             'email': 'test@example.com',
             'password': 'password123'
         }), content_type='application/json')
-        self.client.post('/login', data=json.dumps({
-            'email': 'test@example.com',
-            'password': 'password123'
-        }), content_type='application/json')
+        with self.client.session_transaction() as session:
+            user = User.find_by_email('test@example.com')
+            session['user_id'] = user.id
 
         # Access profile again
         response = self.client.get('/profile')
         self.assertEqual(response.status_code, 200)
+
+    def test_authentication_flow(self):
+        """Test the complete authentication flow."""
+        # Register a new user
+        response = self.client.post('/register', data=json.dumps({
+            'email': 'flow@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+
+        # Log in
+        with self.client.session_transaction() as session:
+            user = User.find_by_email('flow@example.com')
+            session['user_id'] = user.id
+
+        # Access protected profile
+        response = self.client.get('/profile')
+        self.assertEqual(response.status_code, 200)
+        data = json.loads(response.data)
+        self.assertEqual(data['email'], 'flow@example.com')
+
+        # Log out
+        response = self.client.post('/logout')
+        self.assertEqual(response.status_code, 200)
+
+        # Try to access profile again
+        response = self.client.get('/profile')
+        self.assertEqual(response.status_code, 401)
 
 if __name__ == '__main__':
     unittest.main()
