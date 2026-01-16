@@ -15,7 +15,7 @@ This plan outlines the steps to implement a secure user authentication flow.
 
 ## Phase 2: API Endpoint Implementation
 
-- [ ] Task: Write tests for the `/register` endpoint.
+- [x] Task: Write tests for the `/register` endpoint. (6009630)
 - [ ] Task: Implement the `POST /register` endpoint to handle new user registration.
 - [ ] Task: Write tests for the `/login` endpoint.
 - [ ] Task: Implement the `POST /login` endpoint to authenticate users and manage sessions.
