@@ -47,5 +47,22 @@ class TestApi(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_logout_user(self):
+        """Test user logout."""
+        # First, register and login a user
+        self.client.post('/register', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.client.post('/login', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        # Now, try to logout
+        response = self.client.post('/logout')
+
+        self.assertEqual(response.status_code, 200)
+
 if __name__ == '__main__':
     unittest.main()

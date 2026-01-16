@@ -1,9 +1,10 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from sense_v2.models.user import User
 from sense_v2.utils.security import hash_password, verify_password
 
 def create_app():
     app = Flask(__name__)
+    app.config['SECRET_KEY'] = 'super-secret'
 
     @app.route('/register', methods=['POST'])
     def register():
@@ -35,8 +36,15 @@ def create_app():
 
         if not user or not verify_password(password, user.password_hash):
             return jsonify({'error': 'Invalid credentials'}), 401
+        
+        session['user_id'] = user.id
 
         return jsonify({'message': 'Login successful'}), 200
+
+    @app.route('/logout', methods=['POST'])
+    def logout():
+        session.pop('user_id', None)
+        return jsonify({'message': 'Logout successful'}), 200
 
     return app
 
