@@ -32,13 +32,13 @@
 
 ## Phase 3: Scalable Storage Backend
 - [ ] Task: Create `sense_v2/engram/storage.py`
-    - [ ] Create `sense_v2/engram/storage.py` file
-- [ ] Task: Implement `MMapEmbeddingStorage(nn.Module)` class
-    - [ ] Write Failing Tests: Add tests for `MMapEmbeddingStorage` initialization (creating/loading memmap, random noise initialization), and the `forward` method for slicing and returning tensors.
-    - [ ] Implement: Define `MMapEmbeddingStorage` class inheriting from `nn.Module`.
-    - [ ] Implement: `__init__` logic for creating/loading `np.memmap` and initialization.
-    - [ ] Implement: `forward` method for slicing memmap and tensor conversion.
-    - [ ] Refactor: Review and refactor `MMapEmbeddingStorage`.
+    - [x] Create `sense_v2/engram/storage.py` file
+- [x] Task: Implement `MMapEmbeddingStorage(nn.Module)` class
+    - [x] Write Failing Tests: Add tests for `MMapEmbeddingStorage` initialization (creating/loading memmap, random noise initialization), and the `forward` method for slicing and returning tensors.
+    - [x] Implement: Define `MMapEmbeddingStorage` class inheriting from `nn.Module`.
+    - [x] Implement: `__init__` logic for creating/loading `np.memmap` and initialization.
+    - [x] Implement: `forward` method for slicing memmap and tensor conversion.
+    - [x] Refactor: Review and refactor `MMapEmbeddingStorage`.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Scalable Storage Backend' (Protocol in workflow.md)
 
 ## Phase 4: Fusion & Modeling
