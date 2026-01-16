@@ -9,6 +9,8 @@ This document outlines the technology stack for the SENSE v2 framework.
 
 ## 2. Core Libraries & Frameworks
 
+*   **Web Framework:**
+    *   **Flask:** A lightweight WSGI web application framework in Python.
 *   **Machine Learning:**
     *   **TensorFlow (2.x):** Used for building and training neural network models, including the LSTMs and autoencoders that are central to the framework's learning and anomaly detection capabilities.
 *   **Scientific Computing & Data Manipulation:**
