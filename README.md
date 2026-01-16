@@ -9,7 +9,9 @@ SENSE is a sophisticated AI framework that merges various machine learning techn
 - Online Learning: Utilizes LSTM for learning from sequential data, allowing for real-time adaptation.  
 - Anomaly Detection: Uses autoencoders to identify outliers, ensuring data quality and model relevance.  
 - System Resource Monitoring: Dynamically adjusts computational load based on system resource usage.  
-- Data Drift and Model Degradation Handling: Automatically detects and mitigates issues related to data drift or model performance degradation.  
+- Data Drift and Model Degradation Handling: Automatically detects and mitigates issues related to data drift or model performance degradation.
+
+- SENSE v2: Recent advancements have revealed several key pieces of information as it relates to this particular project. I am now moving to implement these novel techniques into the framework. More to come on this...
 
 ---
 
