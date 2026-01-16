@@ -10,7 +10,7 @@
     - [x] Implement: Add `engram: EngramConfig` field to the main `Config` class.
     - [x] Implement: Add necessary imports (`field`, `List`) to `config.py`.
     - [x] Refactor: Review and refactor `config.py` changes.
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Configuration' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Infrastructure & Configuration' (Protocol in workflow.md) [checkpoint: 266cafd]
 
 ## Phase 2: The Shadow Tokenizer Engine
 - [ ] Task: Create `sense_v2/engram/tokenizer.py`
