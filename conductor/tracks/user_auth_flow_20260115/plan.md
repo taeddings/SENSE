@@ -13,7 +13,7 @@ This plan outlines the steps to implement a secure user authentication flow.
 
 ---
 
-## Phase 2: API Endpoint Implementation
+## Phase 2: API Endpoint Implementation [checkpoint: 9acd9a7]
 
 - [x] Task: Write tests for the `/register` endpoint. (6009630)
 - [x] Task: Implement the `POST /register` endpoint to handle new user registration. (6009630)
@@ -23,7 +23,7 @@ This plan outlines the steps to implement a secure user authentication flow.
 - [x] Task: Implement the `POST /logout` endpoint to terminate user sessions. (a9033a7)
 - [x] Task: Write tests for a protected `/profile` endpoint. (84cbe79)
 - [x] Task: Implement a protected `GET /profile` endpoint that requires authentication. (84cbe79)
-- [ ] Task: Conductor - User Manual Verification 'API Endpoint Implementation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'API Endpoint Implementation' (Protocol in workflow.md)
 
 ---
 
