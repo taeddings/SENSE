@@ -714,6 +714,7 @@ class MasterAgent(BaseAgent):
         self.state_logger.dev_log.update_agent(name=self.agent_name, status="running")
 
         try:
+            save_counter = 0
             while self._is_running:
                 # Process queued tasks
                 if self.task_queue:
@@ -721,6 +722,11 @@ class MasterAgent(BaseAgent):
                     await self.delegate_task(task.description, task.priority)
 
                 await asyncio.sleep(0.1)
+
+                save_counter += 1
+                if save_counter % 10 == 0: # Save every 10 iterations
+                    self.dev_log.save()
+
         except Exception as e:
             self.logger.error(f"MasterAgent encountered an error: {e}", exc_info=True)
             self.state_logger.log_error(
@@ -731,3 +737,4 @@ class MasterAgent(BaseAgent):
             self._is_running = False
             self.logger.info("MasterAgent stopped")
             self.state_logger.dev_log.update_agent(name=self.agent_name, status="stopped")
+            self.dev_log.save() # Final save on shutdown

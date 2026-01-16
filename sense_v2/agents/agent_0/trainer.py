@@ -571,6 +571,8 @@ class GRPOTrainer:
                 best_fitness=self.best_fitness_ever,
             )
 
+            self.dev_log.save() # Save state after each training step
+
             return metrics
         except Exception as e:
             self.logger.error(f"Error during training step: {e}", exc_info=True)
@@ -673,6 +675,8 @@ class GRPOTrainer:
             if self.current_iteration >= self.config.max_curriculum_steps:
                 self.logger.info("Reached max curriculum steps, stopping")
                 break
+
+        self.dev_log.save() # Save state after training completes
 
         return metrics
 
