@@ -31,3 +31,15 @@ class User:
         if row:
             return User(row['id'], row['email'], row['password_hash'])
         return None
+
+    @staticmethod
+    def find_by_id(user_id):
+        """Find a user by their ID."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        row = cursor.fetchone()
+        conn.close()
+        if row:
+            return User(row['id'], row['email'], row['password_hash'])
+        return None

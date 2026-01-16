@@ -64,5 +64,25 @@ class TestApi(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_profile_access(self):
+        """Test access to the protected profile endpoint."""
+        # Try to access profile without logging in
+        response = self.client.get('/profile')
+        self.assertEqual(response.status_code, 401)
+
+        # Register and login a user
+        self.client.post('/register', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+        self.client.post('/login', data=json.dumps({
+            'email': 'test@example.com',
+            'password': 'password123'
+        }), content_type='application/json')
+
+        # Access profile again
+        response = self.client.get('/profile')
+        self.assertEqual(response.status_code, 200)
+
 if __name__ == '__main__':
     unittest.main()

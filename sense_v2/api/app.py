@@ -46,6 +46,17 @@ def create_app():
         session.pop('user_id', None)
         return jsonify({'message': 'Logout successful'}), 200
 
+    @app.route('/profile')
+    def profile():
+        if 'user_id' not in session:
+            return jsonify({'error': 'Unauthorized'}), 401
+
+        user = User.find_by_id(session['user_id'])
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({'id': user.id, 'email': user.email})
+
     return app
 
 if __name__ == '__main__':
