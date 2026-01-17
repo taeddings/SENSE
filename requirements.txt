@@ -8,6 +8,14 @@ scikit-learn>=1.3.0  # For agglomerative clustering in diversity penalty
 # agent-zero integration dependencies (multi-session terminal)
 paramiko>=3.3.0  # Optional: For SSH session support
 
+# Memory-aware dependencies
+psutil>=5.9.0  # System resource monitoring
+torch>=2.0.0  # PyTorch for tensor operations
+numpy>=1.24.0  # Numerical operations
+
+# Optional: Triton for CUDA/ROCm acceleration (not required)
+# triton>=2.1.0  # Install separately if CUDA available
+
 # Testing dependencies
 pytest>=7.4.0
 pytest-asyncio>=0.21.0

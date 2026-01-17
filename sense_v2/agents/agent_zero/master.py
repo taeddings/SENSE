@@ -19,8 +19,15 @@ import uuid
 
 from sense_v2.core.base import BaseAgent, BaseTool, AgentState
 from sense_v2.core.schemas import AgentMessage, MessageRole, ToolResult
-from sense_v2.core.config import OrchestrationConfig
+from sense_v2.core.config import OrchestrationConfig, MemoryAwareConfig
 from sense_v2.utils.dev_log import DevLog, StateLogger
+
+# Memory monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 
 # =============================================================================
@@ -394,6 +401,85 @@ class MasterAgent(BaseAgent):
         self._profile = self.DEFAULT_PROFILES[profile_name]
         self.logger.info(f"{self.agent_name} switched to profile: {profile_name}")
         return True
+
+    # =========================================================================
+    # Resource Management
+    # =========================================================================
+
+    async def _check_resources(self) -> Dict[str, Any]:
+        """
+        Check system resources before delegation.
+
+        Returns resource status including memory pressure indicators
+        that can be used to decide whether to activate memory-efficient
+        features like Engram or fused kernels.
+
+        Returns:
+            Dictionary with resource metrics and recommendations
+        """
+        if not PSUTIL_AVAILABLE:
+            return {
+                "psutil_available": False,
+                "ram_available_mb": 0,
+                "ram_percent_used": 0.0,
+                "should_use_fused_kernels": False,
+                "should_activate_engram": False,
+                "memory_pressure": "unknown",
+            }
+
+        mem = psutil.virtual_memory()
+        ram_percent = mem.percent / 100.0  # Normalize to 0-1
+
+        # CPU info
+        cpu_percent = psutil.cpu_percent(interval=0.1)
+
+        # Determine memory pressure level and recommendations
+        if ram_percent < 0.60:
+            memory_pressure = "low"
+            should_activate_engram = False
+            should_use_fused_kernels = False
+        elif ram_percent < 0.75:
+            memory_pressure = "moderate"
+            should_activate_engram = True
+            should_use_fused_kernels = False
+        elif ram_percent < 0.90:
+            memory_pressure = "high"
+            should_activate_engram = True
+            should_use_fused_kernels = True
+        else:
+            memory_pressure = "critical"
+            should_activate_engram = True
+            should_use_fused_kernels = True
+
+        return {
+            "psutil_available": True,
+            "ram_available_mb": mem.available // (1024 * 1024),
+            "ram_used_mb": mem.used // (1024 * 1024),
+            "ram_total_mb": mem.total // (1024 * 1024),
+            "ram_percent_used": ram_percent,
+            "cpu_percent": cpu_percent,
+            "memory_pressure": memory_pressure,
+            "should_use_fused_kernels": should_use_fused_kernels,
+            "should_activate_engram": should_activate_engram,
+        }
+
+    def get_resource_recommendations(self) -> Dict[str, Any]:
+        """
+        Get synchronous resource recommendations.
+
+        Wrapper around _check_resources for non-async contexts.
+        """
+        if not PSUTIL_AVAILABLE:
+            return {"error": "psutil not available"}
+
+        mem = psutil.virtual_memory()
+        ram_percent = mem.percent / 100.0
+
+        return {
+            "ram_percent": ram_percent,
+            "should_activate_engram": ram_percent > 0.60,
+            "should_use_fused_kernels": ram_percent > 0.75,
+        }
 
     # =========================================================================
     # Task Management

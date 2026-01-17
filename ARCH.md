@@ -219,6 +219,7 @@ Tools implement automatic retry with error analysis:
 | `memory_search` | `tools/memory_tools.py` | Search memory |
 | `memory_retrieve` | `tools/memory_tools.py` | Retrieve by key |
 | `memory_stats` | `tools/memory_tools.py` | Get memory statistics |
+| `memory_profile` | `tools/memory_tools.py` | Profile VRAM/RAM with recommendations |
 | `anomaly_detect` | `tools/anomaly.py` | Detect anomalies in data |
 
 ---
@@ -246,7 +247,125 @@ Tools implement automatic retry with error analysis:
 
 ---
 
-## 5. API Layer
+## 5. Memory-Aware Inference Layer
+
+SENSE-v2 includes a memory-aware inference system that optimizes for constrained environments through cross-platform kernel fusion and conditional memory (Engram).
+
+### Cross-Platform Strategy
+
+| Hardware | Backend | Memory Savings |
+|----------|---------|----------------|
+| NVIDIA GPU (CUDA) | Triton kernel fusion | ~84% |
+| AMD GPU (ROCm) | Triton experimental | ~84% |
+| Apple Silicon (MPS) | PyTorch chunked | ~50-60% |
+| CPU / ARM64 | PyTorch chunked | ~50-60% |
+
+**Design Principle:** Runtime feature detection with graceful degradation. Never hard-fail on missing Triton.
+
+### Fused Linear Cross-Entropy Kernels
+**Location:** `sense_v2/llm/kernels/`
+
+The fused kernel avoids materializing the full logits tensor (batch_size x vocab_size) by computing cross-entropy loss in vocabulary chunks.
+
+```python
+# Usage
+from sense_v2.llm.kernels import fused_linear_cross_entropy, get_backend
+
+# Auto-detects best backend
+loss = fused_linear_cross_entropy(hidden, weight, labels)
+
+# Check current backend
+print(get_backend())  # "triton", "pytorch_cuda", "pytorch_mps", or "pytorch_cpu"
+```
+
+Key files:
+- `kernels/__init__.py` - Backend detection and exports
+- `kernels/functional.py` - PyTorch autograd wrapper with chunked fallback
+- `kernels/triton_src.py` - Triton CUDA/ROCm kernels
+
+### Conditional Memory (Engram)
+**Location:** `sense_v2/engram/`
+
+Engram provides static lookup to offload repeated computations to memory:
+
+```
+Input IDs → Shadow Map Compression → N-gram Hash → Table Lookup → Fusion with Hidden States
+```
+
+#### N-gram Hashing
+**Location:** `sense_v2/models/components/hashing.py`
+
+Multi-head XOR hashing for collision-resistant lookups:
+```python
+hash_h(ngram) = XOR(token_i * prime_h^i) mod table_size
+```
+
+- Multiple hash heads with different prime multipliers
+- Supports configurable n-gram orders (default: 2, 3)
+- Deterministic and reproducible
+
+### Memory Hierarchy
+**Location:** `sense_v2/memory/hierarchy.py`
+
+Three-tier memory hierarchy for efficient data placement:
+
+```
+┌─────────────────┐
+│  L1: GPU VRAM   │  ← Fastest, limited capacity
+├─────────────────┤
+│  L2: Host RAM   │  ← Pinned memory for fast DMA
+├─────────────────┤
+│  L3: Disk       │  ← Memory-mapped, largest capacity
+└─────────────────┘
+```
+
+Key components:
+- `EmbeddingPrefetcher` - Async prefetching from host RAM to GPU
+- `MemoryHierarchy` - LRU caching across tiers
+- `PinnedMemoryPool` - Pre-allocated pinned buffers
+
+### Memory-Aware Configuration
+**Location:** `sense_v2/core/config.py`
+
+```python
+@dataclass
+class MemoryAwareConfig:
+    max_ram_usage_mb: int = 4096
+    use_fused_kernels: bool = True
+    enable_host_offload: bool = True
+    memory_warning_threshold: float = 0.60  # Activate Engram
+    memory_critical_threshold: float = 0.75  # Enable fused kernels
+```
+
+### Automatic Activation
+
+The system monitors memory pressure and automatically enables optimizations:
+
+| Memory Usage | Actions |
+|--------------|---------|
+| < 60% | Normal operation |
+| 60-75% | Activate Engram conditional memory |
+| 75-90% | Enable fused kernels |
+| > 90% | Critical mode, reduce batch size |
+
+### Memory-Aware Fitness Function
+**Location:** `sense_v2/agents/agent_0/trainer.py`
+
+Multi-objective evolutionary fitness that penalizes memory usage:
+
+```python
+fitness = (
+    accuracy * 0.6 +
+    memory_efficiency * 0.2 +
+    drift_resistance * 0.2
+)
+```
+
+This ensures evolved agents optimize for both accuracy AND memory efficiency.
+
+---
+
+## 6. API Layer
 
 ### Flask REST Endpoints
 **Location:** `sense_v2/api/app.py`
@@ -266,7 +385,7 @@ Tools implement automatic retry with error analysis:
 
 ---
 
-## 6. Configuration
+## 7. Configuration
 
 ### Main Configuration
 **Location:** `sense_v2/core/config.py`
@@ -277,6 +396,8 @@ class Config:
     evolution: EvolutionConfig      # Agent 0 settings
     orchestration: OrchestrationConfig  # Agent Zero settings
     memory: MemoryConfig            # AgeMem settings
+    engram: EngramConfig            # Engram conditional memory
+    memory_aware: MemoryAwareConfig # Memory-aware inference
 ```
 
 ### Key Configuration Classes:
@@ -284,10 +405,12 @@ class Config:
 - **EvolutionConfig** - GRPO parameters, population size, curriculum stages
 - **OrchestrationConfig** - Delegation depth, timeouts, context limits
 - **MemoryConfig** - Token limits, persistence paths, embedding settings
+- **EngramConfig** - Table size, n-gram orders, layer indices
+- **MemoryAwareConfig** - Fused kernels, host offload, memory thresholds
 
 ---
 
-## 7. Validation & Documentation Rules
+## 8. Validation & Documentation Rules
 
 Per SYSTEM_PROMPT.md requirements:
 
@@ -298,7 +421,7 @@ Per SYSTEM_PROMPT.md requirements:
 
 ---
 
-## 8. Directory Structure
+## 9. Directory Structure
 
 ```
 sense_v2/
@@ -306,32 +429,46 @@ sense_v2/
 │   ├── agent_0/          # The School
 │   │   ├── curriculum.py # CurriculumAgent (Teacher)
 │   │   ├── executor.py   # ExecutorAgent (Student)
-│   │   └── trainer.py    # GRPOTrainer
+│   │   └── trainer.py    # GRPOTrainer (with memory-aware fitness)
 │   └── agent_zero/       # The Workplace
-│       ├── master.py     # MasterAgent
+│       ├── master.py     # MasterAgent (with resource checks)
 │       └── sub_agents.py # Terminal/FS/Browser agents
 ├── api/
 │   └── app.py            # Flask REST API
 ├── core/
 │   ├── base.py           # Base classes
-│   ├── config.py         # Configuration
+│   ├── config.py         # Configuration (includes MemoryAwareConfig)
 │   └── schemas.py        # Schema definitions
+├── engram/               # Conditional Memory
+│   ├── model.py          # EngramFusionLayer
+│   ├── storage.py        # MMapEmbeddingStorage
+│   └── tokenizer.py      # Shadow map tokenizer
+├── llm/
+│   ├── base.py           # LLM base classes
+│   ├── providers.py      # LLM providers
+│   └── kernels/          # Memory-aware kernels [NEW]
+│       ├── __init__.py   # Backend detection
+│       ├── functional.py # PyTorch chunked fallback
+│       └── triton_src.py # Triton CUDA/ROCm kernels
 ├── memory/
 │   ├── agemem.py         # Unified memory system
 │   ├── stm.py            # Short-term memory
 │   ├── ltm.py            # Long-term memory
-│   └── embeddings.py     # Embedding providers
+│   ├── embeddings.py     # Embedding providers
+│   └── hierarchy.py      # Host prefetcher [NEW]
+├── models/
+│   ├── user.py           # User model
+│   └── components/       # Reusable components [NEW]
+│       └── hashing.py    # N-gram hashing
 ├── tools/
 │   ├── terminal.py       # Terminal tools
 │   ├── filesystem.py     # File system tools
-│   ├── memory_tools.py   # Memory tools
+│   ├── memory_tools.py   # Memory tools (includes MemoryProfileTool)
 │   └── anomaly.py        # Anomaly detection
 ├── utils/
 │   ├── security.py       # Security utilities
 │   ├── dev_log.py        # Development logging
 │   └── health.py         # Health checks
-├── models/
-│   └── user.py           # User model
 └── database/
     ├── database.py       # Database connection
     └── schema.py         # Database schema

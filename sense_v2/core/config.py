@@ -153,6 +153,48 @@ class EngramConfig:
 
 
 @dataclass
+class MemoryAwareConfig:
+    """
+    Configuration for memory-aware operations.
+
+    Controls fused kernel usage, host offloading, and resource limits
+    to optimize inference on memory-constrained systems.
+    """
+    # Resource limits
+    max_ram_usage_mb: int = 4096
+    max_vram_usage_mb: int = 8192
+
+    # Fused kernel settings
+    use_fused_kernels: bool = True
+    fused_chunk_size: int = 4096  # Vocab chunk size for chunked softmax
+    force_backend: Optional[str] = None  # Override auto-detection
+
+    # Host offloading
+    enable_host_offload: bool = True
+    prefetch_batch_size: int = 1024
+    pin_memory: bool = True  # Pin host memory for faster transfers
+
+    # Memory pressure thresholds
+    memory_warning_threshold: float = 0.60  # Activate Engram at 60% usage
+    memory_critical_threshold: float = 0.75  # Enable aggressive optimizations
+    fused_kernel_threshold: float = 0.75  # Force fused kernels above this
+
+    # Automatic activation
+    auto_activate_engram: bool = True  # Auto-enable Engram under memory pressure
+    auto_enable_fused: bool = True  # Auto-enable fused kernels under pressure
+
+    def should_activate_engram(self, memory_percent: float) -> bool:
+        """Check if Engram should be activated based on memory pressure."""
+        return self.auto_activate_engram and memory_percent >= self.memory_warning_threshold
+
+    def should_use_fused_kernels(self, memory_percent: float) -> bool:
+        """Check if fused kernels should be used based on memory pressure."""
+        if not self.use_fused_kernels:
+            return False
+        return self.auto_enable_fused and memory_percent >= self.fused_kernel_threshold
+
+
+@dataclass
 class Config:
     """
     Master configuration for SENSE-v2 framework.
@@ -163,6 +205,7 @@ class Config:
     orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     engram: EngramConfig = field(default_factory=EngramConfig)
+    memory_aware: MemoryAwareConfig = field(default_factory=MemoryAwareConfig)
 
     # Global settings
     log_level: str = "INFO"
@@ -192,6 +235,7 @@ class Config:
         orchestration = OrchestrationConfig(**data.get("orchestration", {})) if "orchestration" in data else OrchestrationConfig()
         memory = MemoryConfig(**data.get("memory", {})) if "memory" in data else MemoryConfig()
         engram = EngramConfig(**data.get("engram", {})) if "engram" in data else EngramConfig()
+        memory_aware = MemoryAwareConfig(**data.get("memory_aware", {})) if "memory_aware" in data else MemoryAwareConfig()
 
         return cls(
             hardware=hardware,
@@ -199,6 +243,7 @@ class Config:
             orchestration=orchestration,
             memory=memory,
             engram=engram,
+            memory_aware=memory_aware,
             log_level=data.get("log_level", "INFO"),
             log_file=data.get("log_file", "sense_v2.log"),
             dev_log_file=data.get("dev_log_file", "dev_log.json"),

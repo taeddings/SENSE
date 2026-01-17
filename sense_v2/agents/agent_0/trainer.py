@@ -17,11 +17,18 @@ import re
 import numpy as np
 from datetime import datetime
 
-from sense_v2.core.config import EvolutionConfig
+from sense_v2.core.config import EvolutionConfig, MemoryAwareConfig
 from sense_v2.core.schemas import RewardSignal
 from sense_v2.agents.agent_0.curriculum import CurriculumAgent, CurriculumTask
 from sense_v2.agents.agent_0.executor import ExecutorAgent, ExecutionTrace
 from sense_v2.utils.dev_log import DevLog, StateLogger
+
+# Memory monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
 
 # Optional imports for enhanced rewards
 try:
@@ -215,6 +222,100 @@ def diversity_penalty(
     # Penalty is the proportion of cluster (larger cluster = higher penalty)
     penalties = [cluster_ratio[lab] for lab in labels]
     return penalties
+
+
+# =============================================================================
+# Memory-Aware Fitness Functions
+# =============================================================================
+
+def get_memory_usage() -> dict:
+    """
+    Get current system memory usage.
+
+    Returns:
+        Dictionary with memory statistics
+    """
+    if not PSUTIL_AVAILABLE:
+        return {
+            "ram_percent": 0.0,
+            "ram_available_mb": 0,
+            "ram_used_mb": 0,
+            "psutil_available": False,
+        }
+
+    mem = psutil.virtual_memory()
+    return {
+        "ram_percent": mem.percent / 100.0,  # Normalize to 0-1
+        "ram_available_mb": mem.available // (1024 * 1024),
+        "ram_used_mb": mem.used // (1024 * 1024),
+        "ram_total_mb": mem.total // (1024 * 1024),
+        "psutil_available": True,
+    }
+
+
+def compute_memory_aware_fitness(
+    accuracy: float,
+    memory_mb: float,
+    drift_resistance: float = 1.0,
+    accuracy_weight: float = 0.6,
+    memory_weight: float = 0.2,
+    drift_weight: float = 0.2,
+    memory_baseline_mb: float = 1000.0,
+) -> float:
+    """
+    Multi-objective fitness function with memory penalty.
+
+    Balances accuracy, memory efficiency, and drift resistance for
+    evolutionary selection of memory-efficient agents.
+
+    Args:
+        accuracy: Task completion accuracy (0.0 to 1.0)
+        memory_mb: Memory used during execution in MB
+        drift_resistance: Resistance to distribution drift (0.0 to 1.0)
+        accuracy_weight: Weight for accuracy component
+        memory_weight: Weight for memory efficiency component
+        drift_weight: Weight for drift resistance component
+        memory_baseline_mb: Baseline memory for normalization
+
+    Returns:
+        Combined fitness score
+    """
+    # Normalize memory penalty: higher memory = lower score
+    # Using inverse with baseline to keep values reasonable
+    memory_efficiency = memory_baseline_mb / max(memory_mb, 1.0)
+    memory_efficiency = min(memory_efficiency, 1.0)  # Cap at 1.0
+
+    # Combine components
+    fitness = (
+        accuracy * accuracy_weight +
+        memory_efficiency * memory_weight +
+        drift_resistance * drift_weight
+    )
+
+    return fitness
+
+
+@dataclass
+class MemoryAwareRewardComponents:
+    """Extended reward components including memory metrics."""
+    base_reward: float
+    format_reward: float
+    tool_reward: float
+    diversity_penalty: float
+    memory_penalty: float
+    drift_resistance: float
+    total: float
+
+    def to_dict(self) -> dict:
+        return {
+            "base_reward": self.base_reward,
+            "format_reward": self.format_reward,
+            "tool_reward": self.tool_reward,
+            "diversity_penalty": self.diversity_penalty,
+            "memory_penalty": self.memory_penalty,
+            "drift_resistance": self.drift_resistance,
+            "total": self.total,
+        }
 
 
 @dataclass

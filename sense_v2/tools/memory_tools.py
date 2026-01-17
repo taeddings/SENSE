@@ -1,6 +1,6 @@
 """
 SENSE-v2 Memory Tools
-Schema-based tools for AgeMem memory operations.
+Schema-based tools for AgeMem memory operations and system memory profiling.
 """
 
 from typing import Any, Dict, List, Optional
@@ -8,6 +8,20 @@ import logging
 
 from sense_v2.core.base import BaseTool, ToolRegistry
 from sense_v2.core.schemas import ToolSchema, ToolParameter, ToolResult
+
+# Memory monitoring
+try:
+    import psutil
+    PSUTIL_AVAILABLE = True
+except ImportError:
+    PSUTIL_AVAILABLE = False
+
+# GPU monitoring
+try:
+    import torch
+    TORCH_AVAILABLE = True
+except ImportError:
+    TORCH_AVAILABLE = False
 
 
 @ToolRegistry.register
@@ -304,4 +318,181 @@ class MemoryStatsTool(BaseTool):
             stats = self._memory.get_usage_stats()
             return ToolResult.success(stats)
         except Exception as e:
+            return ToolResult.error(str(e))
+
+
+@ToolRegistry.register
+class MemoryProfileTool(BaseTool):
+    """
+    Tool for profiling VRAM/RAM usage and providing optimization recommendations.
+
+    Returns comprehensive memory statistics including:
+    - System RAM usage and availability
+    - GPU VRAM usage (if available)
+    - Memory pressure indicators
+    - Recommendations for enabling memory-efficient features
+    """
+
+    def __init__(self, config: Optional[Any] = None):
+        super().__init__(config)
+        self.logger = logging.getLogger(self.__class__.__name__)
+
+    @property
+    def schema(self) -> ToolSchema:
+        return ToolSchema(
+            name="memory_profile",
+            description="Profile system memory (RAM/VRAM) and get optimization recommendations",
+            parameters=[
+                ToolParameter(
+                    name="include_gpu",
+                    param_type="boolean",
+                    description="Include GPU memory statistics",
+                    required=False,
+                    default=True,
+                ),
+                ToolParameter(
+                    name="include_recommendations",
+                    param_type="boolean",
+                    description="Include optimization recommendations",
+                    required=False,
+                    default=True,
+                ),
+            ],
+            returns="object",
+            returns_description="Memory profile with usage stats and recommendations",
+            category="memory",
+            max_retries=0,
+        )
+
+    async def execute(
+        self,
+        include_gpu: bool = True,
+        include_recommendations: bool = True,
+        **kwargs
+    ) -> ToolResult:
+        """Profile system memory and provide recommendations."""
+        try:
+            profile = {}
+
+            # System RAM stats
+            if PSUTIL_AVAILABLE:
+                mem = psutil.virtual_memory()
+                swap = psutil.swap_memory()
+
+                profile["ram"] = {
+                    "total_mb": mem.total // (1024 * 1024),
+                    "available_mb": mem.available // (1024 * 1024),
+                    "used_mb": mem.used // (1024 * 1024),
+                    "percent_used": mem.percent,
+                    "swap_total_mb": swap.total // (1024 * 1024),
+                    "swap_used_mb": swap.used // (1024 * 1024),
+                    "swap_percent": swap.percent,
+                }
+
+                # Memory pressure level
+                ram_percent = mem.percent / 100.0
+                if ram_percent < 0.60:
+                    profile["memory_pressure"] = "low"
+                elif ram_percent < 0.75:
+                    profile["memory_pressure"] = "moderate"
+                elif ram_percent < 0.90:
+                    profile["memory_pressure"] = "high"
+                else:
+                    profile["memory_pressure"] = "critical"
+            else:
+                profile["ram"] = {"error": "psutil not available"}
+                profile["memory_pressure"] = "unknown"
+
+            # GPU stats
+            if include_gpu and TORCH_AVAILABLE:
+                profile["gpu"] = {}
+
+                if torch.cuda.is_available():
+                    device_count = torch.cuda.device_count()
+                    profile["gpu"]["device_count"] = device_count
+                    profile["gpu"]["devices"] = []
+
+                    for i in range(device_count):
+                        device_props = torch.cuda.get_device_properties(i)
+                        mem_allocated = torch.cuda.memory_allocated(i)
+                        mem_reserved = torch.cuda.memory_reserved(i)
+                        mem_total = device_props.total_memory
+
+                        profile["gpu"]["devices"].append({
+                            "index": i,
+                            "name": device_props.name,
+                            "total_mb": mem_total // (1024 * 1024),
+                            "allocated_mb": mem_allocated // (1024 * 1024),
+                            "reserved_mb": mem_reserved // (1024 * 1024),
+                            "free_mb": (mem_total - mem_reserved) // (1024 * 1024),
+                            "utilization_percent": (mem_allocated / mem_total) * 100,
+                        })
+
+                elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                    profile["gpu"]["backend"] = "mps"
+                    profile["gpu"]["available"] = True
+                    # MPS doesn't expose detailed memory stats
+                    profile["gpu"]["note"] = "MPS memory stats not available"
+                else:
+                    profile["gpu"]["available"] = False
+                    profile["gpu"]["backend"] = "none"
+            elif include_gpu:
+                profile["gpu"] = {"error": "torch not available"}
+
+            # Recommendations
+            if include_recommendations:
+                recommendations = []
+
+                pressure = profile.get("memory_pressure", "unknown")
+
+                if pressure == "moderate":
+                    recommendations.append({
+                        "action": "activate_engram",
+                        "reason": "Memory usage above 60%, Engram can reduce compute by caching",
+                        "priority": "medium",
+                    })
+                elif pressure == "high":
+                    recommendations.append({
+                        "action": "activate_engram",
+                        "reason": "Memory usage above 75%, Engram recommended",
+                        "priority": "high",
+                    })
+                    recommendations.append({
+                        "action": "use_fused_kernels",
+                        "reason": "Memory pressure high, fused kernels can save ~50-84% memory",
+                        "priority": "high",
+                    })
+                elif pressure == "critical":
+                    recommendations.append({
+                        "action": "activate_engram",
+                        "reason": "Critical memory pressure, Engram required",
+                        "priority": "critical",
+                    })
+                    recommendations.append({
+                        "action": "use_fused_kernels",
+                        "reason": "Critical memory pressure, fused kernels required",
+                        "priority": "critical",
+                    })
+                    recommendations.append({
+                        "action": "reduce_batch_size",
+                        "reason": "Consider reducing batch size to avoid OOM",
+                        "priority": "critical",
+                    })
+
+                # GPU-specific recommendations
+                if "gpu" in profile and "devices" in profile["gpu"]:
+                    for device in profile["gpu"]["devices"]:
+                        if device.get("utilization_percent", 0) > 80:
+                            recommendations.append({
+                                "action": "enable_gradient_checkpointing",
+                                "reason": f"GPU {device['index']} utilization > 80%",
+                                "priority": "high",
+                            })
+
+                profile["recommendations"] = recommendations
+
+            return ToolResult.success(profile)
+
+        except Exception as e:
+            self.logger.error(f"Memory profiling failed: {e}")
             return ToolResult.error(str(e))
