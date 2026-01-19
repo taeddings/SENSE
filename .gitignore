@@ -32,3 +32,14 @@ Thumbs.db
 
 # Conductor specific
 conductor/archive/
+
+conductor/
+.github/
+*_out.txt
+*.sh
+verify_*.py
+run_protocol_tests.py
+__pycache__/
+*.log
+.DS_Store
+

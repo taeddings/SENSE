@@ -1,8 +1,0 @@
-{
-  "track_id": "engram_integration_20260116",
-  "type": "feature",
-  "status": "new",
-  "created_at": "2026-01-16T00:00:00Z",
-  "updated_at": "2026-01-16T00:00:00Z",
-  "description": "Implement the Engram Conditional Memory architecture into SENSE-v2."
-}
