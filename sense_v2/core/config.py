@@ -195,6 +195,32 @@ class MemoryAwareConfig:
 
 
 @dataclass
+class ProtocolConfig:
+    """
+    Configuration for DRGN binary protocol.
+
+    Controls message size limits, serialization format, and async I/O
+    settings for the SENSE protocol layer.
+    """
+    # Message size limits (DoS protection)
+    max_message_size: int = 64 * 1024 * 1024  # 64 MB
+    max_string_length: int = 16 * 1024 * 1024  # 16 MB per string
+
+    # Serialization settings
+    use_msgpack: bool = True  # False falls back to JSON
+    compress_threshold: int = 1024  # Compress payloads larger than this
+
+    # CRC32 verification
+    verify_crc32: bool = True
+
+    # Async I/O settings
+    async_buffer_size: int = 65536  # 64 KB read buffer
+    read_timeout: float = 30.0  # Seconds
+    write_timeout: float = 30.0  # Seconds
+    max_pending_messages: int = 256
+
+
+@dataclass
 class Config:
     """
     Master configuration for SENSE-v2 framework.
@@ -206,6 +232,7 @@ class Config:
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     engram: EngramConfig = field(default_factory=EngramConfig)
     memory_aware: MemoryAwareConfig = field(default_factory=MemoryAwareConfig)
+    protocol: ProtocolConfig = field(default_factory=ProtocolConfig)
 
     # Global settings
     log_level: str = "INFO"
@@ -236,6 +263,7 @@ class Config:
         memory = MemoryConfig(**data.get("memory", {})) if "memory" in data else MemoryConfig()
         engram = EngramConfig(**data.get("engram", {})) if "engram" in data else EngramConfig()
         memory_aware = MemoryAwareConfig(**data.get("memory_aware", {})) if "memory_aware" in data else MemoryAwareConfig()
+        protocol = ProtocolConfig(**data.get("protocol", {})) if "protocol" in data else ProtocolConfig()
 
         return cls(
             hardware=hardware,
@@ -244,6 +272,7 @@ class Config:
             memory=memory,
             engram=engram,
             memory_aware=memory_aware,
+            protocol=protocol,
             log_level=data.get("log_level", "INFO"),
             log_file=data.get("log_file", "sense_v2.log"),
             dev_log_file=data.get("dev_log_file", "dev_log.json"),

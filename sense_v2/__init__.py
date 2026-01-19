@@ -18,7 +18,7 @@ __version__ = "2.0.0"
 __author__ = "Todd Eddings"
 
 # Core
-from sense_v2.core.config import Config, HardwareConfig, EvolutionConfig, OrchestrationConfig, MemoryConfig
+from sense_v2.core.config import Config, HardwareConfig, EvolutionConfig, OrchestrationConfig, MemoryConfig, ProtocolConfig
 from sense_v2.core.base import BaseAgent, BaseTool, BaseMemory, ToolRegistry, AgentState
 from sense_v2.core.schemas import ToolSchema, ToolResult, AgentMessage, RewardSignal
 
@@ -44,6 +44,20 @@ from sense_v2.tools.anomaly import AnomalyDetectionTool
 from sense_v2.utils.dev_log import DevLog, StateLogger
 from sense_v2.utils.health import HealthMonitor, SystemHealth, get_health_monitor
 
+# Protocol
+from sense_v2.protocol import (
+    SENSEMessage,
+    DRGNHeader,
+    BinaryParser,
+    AgentMessageAdapter,
+    AsyncMessageReader,
+    AsyncMessageWriter,
+    AsyncMessageChannel,
+)
+
+# Engram Manager
+from sense_v2.engram.manager import EngramManager, AsyncEngramManager
+
 __all__ = [
     # Version info
     "__version__",
@@ -54,6 +68,7 @@ __all__ = [
     "EvolutionConfig",
     "OrchestrationConfig",
     "MemoryConfig",
+    "ProtocolConfig",
     "BaseAgent",
     "BaseTool",
     "BaseMemory",
@@ -90,4 +105,15 @@ __all__ = [
     "HealthMonitor",
     "SystemHealth",
     "get_health_monitor",
+    # Protocol
+    "SENSEMessage",
+    "DRGNHeader",
+    "BinaryParser",
+    "AgentMessageAdapter",
+    "AsyncMessageReader",
+    "AsyncMessageWriter",
+    "AsyncMessageChannel",
+    # Engram Manager
+    "EngramManager",
+    "AsyncEngramManager",
 ]

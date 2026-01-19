@@ -348,6 +348,104 @@ The system monitors memory pressure and automatically enables optimizations:
 | 75-90% | Enable fused kernels |
 | > 90% | Critical mode, reduce batch size |
 
+---
+
+## 5.1 Binary Protocol Layer (DRGN)
+
+SENSE-v2 includes a high-performance binary protocol for inter-agent communication.
+
+### Protocol Stack
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SENSE Binary Protocol Stack                   │
+├─────────────────────────────────────────────────────────────────┤
+│  SENSEMessage (High-Level API)                                  │
+│    ├── create_request() / create_response()                     │
+│    └── Uses DRGNHeader + BinaryParser                           │
+├─────────────────────────────────────────────────────────────────┤
+│  DRGNHeader (Fixed 29-byte wire format)                         │
+│    └── Network byte order (!), CRC32 integrity                  │
+├─────────────────────────────────────────────────────────────────┤
+│  BinaryParser (Zero-Copy In-Place Parsing)                      │
+│    └── memoryview slices, lazy UTF-8 decoding                   │
+├─────────────────────────────────────────────────────────────────┤
+│  EngramManager (Resource-Safe Buffer Management)                │
+│    └── mmap + ExitStack for Termux file descriptor safety       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### DRGN Header Format (29 bytes)
+
+```
+Offset  Size   Field            Type      Description
+──────────────────────────────────────────────────────────────
+0       4      Signature        uint32    Magic 'DRGN' (0x4452474E)
+4       4      TotalBytes       uint32    Message size after this field
+8       1      ProtocolVersion  uint8     Version (0x00 for v1)
+9       4      MethodID         uint32    Remote function identifier
+13      4      Flags            uint32    Payload type bitmask
+17      8      MessageID        uint64    Async request/response tracking
+25      4      CRC32            uint32    Checksum of payload
+```
+
+**Why Network Byte Order (`!`)?**
+- Standardizes to big-endian across all architectures
+- Prevents ARM64 unaligned access faults (common on Android/Termux)
+- Standard wire format matching TCP/IP conventions
+
+### Key Components
+
+**Location:** `sense_v2/protocol/`
+
+| File | Description |
+|------|-------------|
+| `constants.py` | Protocol constants, limits, flags |
+| `exceptions.py` | Custom exception classes |
+| `header.py` | DRGNHeader dataclass |
+| `parser.py` | BinaryParser with zero-copy |
+| `message.py` | SENSEMessage high-level API |
+| `async_io.py` | Async stream reading/writing |
+| `adapters.py` | AgentMessage ↔ SENSEMessage adapters |
+| `serializers.py` | MessagePack/JSON serialization |
+
+### Usage Examples
+
+```python
+# Creating a request
+from sense_v2.protocol import SENSEMessage, METHOD_ID_AGENT_USER
+
+msg = SENSEMessage.create_request(
+    method_id=METHOD_ID_AGENT_USER,
+    payload={"content": "Hello!"},
+)
+wire_bytes = msg.to_bytes()
+
+# Parsing a message
+msg = SENSEMessage.parse(wire_bytes)
+print(msg.payload)  # {'content': 'Hello!'}
+
+# AgentMessage integration
+from sense_v2.protocol import AgentMessageAdapter
+binary = agent_msg.to_binary()  # Added via monkey-patching
+agent_msg = AgentMessage.from_binary(binary)
+```
+
+### EngramManager
+
+**Location:** `sense_v2/engram/manager.py`
+
+Resource-safe buffer management for memory-mapped files:
+
+```python
+with EngramManager('/path/to/engram.dat') as manager:
+    parser = manager.get_parser()  # Zero-copy BinaryParser
+    view = manager.get_slice(0, 1024)  # Direct memoryview
+```
+
+**Why ExitStack?**
+Termux on Android has limited file descriptors. ExitStack ensures ALL resources are closed even if exceptions occur during processing.
+
 ### Memory-Aware Fitness Function
 **Location:** `sense_v2/agents/agent_0/trainer.py`
 
@@ -398,6 +496,7 @@ class Config:
     memory: MemoryConfig            # AgeMem settings
     engram: EngramConfig            # Engram conditional memory
     memory_aware: MemoryAwareConfig # Memory-aware inference
+    protocol: ProtocolConfig        # Binary protocol settings [NEW]
 ```
 
 ### Key Configuration Classes:
@@ -407,6 +506,7 @@ class Config:
 - **MemoryConfig** - Token limits, persistence paths, embedding settings
 - **EngramConfig** - Table size, n-gram orders, layer indices
 - **MemoryAwareConfig** - Fused kernels, host offload, memory thresholds
+- **ProtocolConfig** - Message size limits, serialization, async I/O settings
 
 ---
 
@@ -440,9 +540,20 @@ sense_v2/
 │   ├── config.py         # Configuration (includes MemoryAwareConfig)
 │   └── schemas.py        # Schema definitions
 ├── engram/               # Conditional Memory
+│   ├── manager.py        # EngramManager (mmap + ExitStack) [NEW]
 │   ├── model.py          # EngramFusionLayer
 │   ├── storage.py        # MMapEmbeddingStorage
 │   └── tokenizer.py      # Shadow map tokenizer
+├── protocol/             # Binary Protocol Layer [NEW]
+│   ├── __init__.py       # Module exports
+│   ├── constants.py      # Protocol constants, limits, flags
+│   ├── exceptions.py     # Custom exception classes
+│   ├── header.py         # DRGNHeader dataclass
+│   ├── parser.py         # BinaryParser with zero-copy
+│   ├── message.py        # SENSEMessage high-level API
+│   ├── async_io.py       # Async stream reading/writing
+│   ├── adapters.py       # AgentMessage adapters
+│   └── serializers.py    # MessagePack/JSON serialization
 ├── llm/
 │   ├── base.py           # LLM base classes
 │   ├── providers.py      # LLM providers

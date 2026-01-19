@@ -13,6 +13,9 @@ psutil>=5.9.0  # System resource monitoring
 torch>=2.0.0  # PyTorch for tensor operations
 numpy>=1.24.0  # Numerical operations
 
+# Protocol dependencies (optional: JSON fallback if not installed)
+msgpack>=1.0.0  # MessagePack serialization for binary protocol
+
 # Optional: Triton for CUDA/ROCm acceleration (not required)
 # triton>=2.1.0  # Install separately if CUDA available
 
