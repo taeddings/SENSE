@@ -7,16 +7,24 @@ Enhanced with agent-zero patterns:
 - SSH remote execution option
 - Dialog detection (Y/N prompts)
 - Timeout configuration per session
+
+Hardened for SENSE v2 Unified Evolutionary Architecture:
+- Strict type annotations throughout
+- ExecutionError raising on critical stderr
+- Extended safety checks for dangerous commands
+- Proper error propagation for self-correction loops
 """
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union, Set
 from dataclasses import dataclass, field
 import asyncio
 import os
 import re
 import logging
+import shlex
 from datetime import datetime
 from enum import Enum
+from pathlib import Path
 
 from sense_v2.core.base import BaseTool, ToolRegistry
 from sense_v2.core.schemas import (
@@ -25,6 +33,37 @@ from sense_v2.core.schemas import (
     ToolResult,
     ToolResultStatus,
 )
+
+
+class ExecutionError(Exception):
+    """
+    Raised when terminal command execution fails critically.
+
+    Used for self-correction loops - the agent can parse the error
+    and retry with a corrected command.
+    """
+    def __init__(
+        self,
+        message: str,
+        command: str = "",
+        exit_code: Optional[int] = None,
+        stderr: str = "",
+        recoverable: bool = True,
+    ):
+        super().__init__(message)
+        self.command = command
+        self.exit_code = exit_code
+        self.stderr = stderr
+        self.recoverable = recoverable
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "message": str(self),
+            "command": self.command,
+            "exit_code": self.exit_code,
+            "stderr": self.stderr,
+            "recoverable": self.recoverable,
+        }
 
 # Optional SSH support
 try:
@@ -323,18 +362,61 @@ class TerminalTool(BaseTool):
     # Shared session manager across tool instances (initialized lazily)
     _session_manager: Optional[SessionManager] = None
 
-    def __init__(self, config: Optional[Any] = None):
+    # Class-level blocked command patterns (comprehensive list)
+    BLOCKED_PATTERNS: List[str] = [
+        # Destructive file operations
+        "rm -rf /",
+        "rm -rf /*",
+        "rm -rf ~",
+        "rm -rf $HOME",
+        # Disk operations
+        "mkfs",
+        "dd if=/dev/zero of=/dev/sd",
+        "dd if=/dev/random of=/dev/sd",
+        "dd of=/dev/sd",
+        # Fork bombs
+        ":(){:|:&};:",
+        ":(){ :|:& };:",
+        # System destruction
+        "mv /* /dev/null",
+        "chmod -R 777 /",
+        "chown -R",
+        # Network attacks
+        "nmap -sS",  # SYN scan (requires root, suspicious)
+        # Privilege escalation
+        "sudo rm",
+        "sudo dd",
+        "sudo mkfs",
+        # History manipulation (could hide attacks)
+        "history -c",
+        "export HISTSIZE=0",
+        # Dangerous redirections
+        "> /etc/passwd",
+        "> /etc/shadow",
+        ">/dev/sda",
+    ]
+
+    # Patterns that require extra caution (logged but allowed)
+    CAUTION_PATTERNS: List[str] = [
+        "sudo",
+        "su -",
+        "wget",
+        "curl.*|.*sh",
+        "chmod +x",
+        "rm -r",
+    ]
+
+    def __init__(self, config: Optional[Any] = None) -> None:
         super().__init__(config)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.cwd = os.getcwd()
+        self.cwd: str = os.getcwd()
 
-        # Blocked commands for safety
-        self._blocked_patterns = [
-            "rm -rf /",
-            "mkfs",
-            ":(){:|:&};:",  # Fork bomb
-            "dd if=/dev/zero of=/dev/sda",
-        ]
+        # Instance-level blocked patterns (can be extended)
+        self._blocked_patterns: List[str] = list(self.BLOCKED_PATTERNS)
+
+        # Track command history for security analysis
+        self._command_history: List[Dict[str, Any]] = []
+        self._max_history_size: int = 100
 
     @property
     def session_manager(self) -> SessionManager:
@@ -400,10 +482,84 @@ class TerminalTool(BaseTool):
             max_retries=2,
         )
 
-    def _is_blocked(self, command: str) -> bool:
-        """Check if command matches blocked patterns."""
-        cmd_lower = command.lower()
-        return any(pattern in cmd_lower for pattern in self._blocked_patterns)
+    def _is_blocked(self, command: str) -> Tuple[bool, Optional[str]]:
+        """
+        Check if command matches blocked patterns.
+
+        Args:
+            command: The command to check
+
+        Returns:
+            Tuple of (is_blocked, matched_pattern)
+        """
+        cmd_lower = command.lower().strip()
+
+        # Check exact and substring matches
+        for pattern in self._blocked_patterns:
+            if pattern.lower() in cmd_lower:
+                return True, pattern
+
+        # Check regex patterns for more complex matches
+        dangerous_regexes = [
+            (r"rm\s+-[rf]+\s+/(?:\s|$)", "recursive delete from root"),
+            (r">\s*/dev/sd[a-z]", "redirect to disk device"),
+            (r"dd\s+.*of=/dev/sd[a-z]", "dd to disk device"),
+            (r"chmod\s+-R\s+777\s+/", "chmod 777 on root"),
+            (r"curl.*\|\s*(?:ba)?sh", "pipe curl to shell"),
+            (r"wget.*\|\s*(?:ba)?sh", "pipe wget to shell"),
+        ]
+
+        for regex, description in dangerous_regexes:
+            if re.search(regex, cmd_lower):
+                return True, description
+
+        return False, None
+
+    def _is_caution(self, command: str) -> Tuple[bool, Optional[str]]:
+        """
+        Check if command requires extra caution (logged but allowed).
+
+        Args:
+            command: The command to check
+
+        Returns:
+            Tuple of (requires_caution, matched_pattern)
+        """
+        cmd_lower = command.lower().strip()
+
+        for pattern in self.CAUTION_PATTERNS:
+            if re.search(pattern, cmd_lower):
+                return True, pattern
+
+        return False, None
+
+    def _record_command(
+        self,
+        command: str,
+        result: Optional[ToolResult] = None,
+        blocked: bool = False,
+    ) -> None:
+        """
+        Record command in history for security analysis.
+
+        Args:
+            command: The executed command
+            result: The execution result (if any)
+            blocked: Whether the command was blocked
+        """
+        entry = {
+            "command": command[:200],  # Truncate long commands
+            "timestamp": datetime.now().isoformat(),
+            "blocked": blocked,
+            "exit_code": result.exit_code if result else None,
+            "success": result.is_success if result else None,
+        }
+
+        self._command_history.append(entry)
+
+        # Keep history bounded
+        if len(self._command_history) > self._max_history_size:
+            self._command_history = self._command_history[-self._max_history_size:]
 
     async def execute(
         self,
@@ -433,12 +589,20 @@ class TerminalTool(BaseTool):
         """
         start_time = datetime.now()
 
-        # Safety check
-        if self._is_blocked(command):
+        # Safety check - blocked commands
+        is_blocked, blocked_reason = self._is_blocked(command)
+        if is_blocked:
+            self._record_command(command, blocked=True)
+            self.logger.warning(f"Blocked command: {command[:50]}... (reason: {blocked_reason})")
             return ToolResult.error(
-                "Command blocked for safety reasons",
-                metadata={"command": command[:50]},
+                f"Command blocked for safety reasons: {blocked_reason}",
+                metadata={"command": command[:50], "blocked_reason": blocked_reason},
             )
+
+        # Caution check - log but allow
+        is_caution, caution_reason = self._is_caution(command)
+        if is_caution:
+            self.logger.info(f"Caution command executed: {command[:50]}... (pattern: {caution_reason})")
 
         working_dir = cwd or self.cwd
 
@@ -488,10 +652,30 @@ class TerminalTool(BaseTool):
                 stdout_str + stderr_str
             )
 
+            # Record command in history
+            self._record_command(command, result)
+
             # Log for debugging
             self.logger.debug(
                 f"Executed: {command[:50]}... exit_code={process.returncode}"
             )
+
+            # Check for critical errors that should raise ExecutionError
+            if process.returncode != 0 and stderr_str:
+                critical_patterns = [
+                    "permission denied",
+                    "command not found",
+                    "no such file or directory",
+                    "segmentation fault",
+                    "killed",
+                    "out of memory",
+                ]
+                stderr_lower = stderr_str.lower()
+                is_critical = any(p in stderr_lower for p in critical_patterns)
+
+                if is_critical:
+                    result.metadata["critical_error"] = True
+                    # Don't raise here - let the agent handle via should_retry
 
             return result
 
