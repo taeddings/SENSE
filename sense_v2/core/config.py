@@ -195,6 +195,93 @@ class MemoryAwareConfig:
 
 
 @dataclass
+class ReasoningConfig:
+    """
+    Configuration for the adaptive reasoning system.
+
+    Controls token budgeting, verification loops, and compensatory reasoning
+    for optimal agent performance under varying conditions.
+    """
+    # Adaptive reasoning budget
+    base_reasoning_budget: int = 1024  # Base tokens for thinking steps
+    max_reasoning_budget: int = 8192   # Maximum allowed budget
+    min_reasoning_budget: int = 256    # Minimum allowed budget
+
+    # Reasoning modes
+    default_mode: str = "BALANCED"     # EFFICIENT, BALANCED, EXPLORATORY, COMPENSATORY
+    compensatory_multiplier: float = 2.0  # Budget multiplier when sensors offline
+    compensatory_verification: int = 2   # Extra verification loops when offline
+
+    # VRAM monitoring
+    vram_monitoring_enabled: bool = True
+    vram_warning_threshold: float = 0.75
+    vram_critical_threshold: float = 0.90
+
+    # Memory integration
+    memory_similarity_boost: float = 0.7  # Similarity threshold for budget reduction
+    memory_budget_reduction: float = 0.3  # Budget reduction factor for similar memories
+
+    # Verification settings
+    max_verification_loops: int = 5
+    verification_timeout_seconds: int = 60
+
+    # Drift adaptation
+    drift_high_threshold: float = 0.5
+    drift_low_threshold: float = 0.2
+    drift_budget_increase: float = 0.15  # 10-20% increase for high drift
+
+
+@dataclass
+class GroundingConfig:
+    """
+    Configuration for physical grounding system.
+
+    Controls sensor integration, hallucination detection, and ground truth
+    verification to ensure agent claims align with physical reality.
+    """
+    # Grounding verification
+    grounding_enabled: bool = True
+    grounding_score_threshold: float = 0.5  # Minimum score for valid grounding
+    hallucination_alert_threshold: float = 0.3  # Trigger alert below this
+
+    # Sensor integration
+    sensor_timeout_seconds: int = 5.0
+    sensor_retry_attempts: int = 3
+    sensor_backoff_base: float = 1.5
+
+    # Plugin management
+    max_concurrent_plugins: int = 10
+    plugin_initialization_timeout: int = 30
+    plugin_health_check_interval: int = 60
+
+    # Ground truth sources
+    trusted_sensor_types: List[str] = field(default_factory=lambda: [
+        "temperature", "humidity", "pressure", "light", "motion"
+    ])
+
+    # Quality thresholds
+    min_sensor_quality: float = 0.7
+    max_sensor_age_seconds: int = 300  # Reject readings older than 5 minutes
+
+    # Emergency responses
+    emergency_stop_on_hallucination: bool = True
+    hallucination_cooldown_seconds: int = 30
+
+    # Compensation strategies
+    offline_compensation_enabled: bool = True
+    compensation_fallback_accuracy: float = 0.5  # Assumed accuracy when sensors offline
+
+    def is_sensor_trusted(self, sensor_type: str) -> bool:
+        """Check if a sensor type is in the trusted list."""
+        return sensor_type in self.trusted_sensor_types
+
+    def should_trigger_emergency(self, hallucination_score: float) -> bool:
+        """Determine if hallucination score should trigger emergency response."""
+        return (self.emergency_stop_on_hallucination and
+                hallucination_score <= self.hallucination_alert_threshold)
+
+
+@dataclass
 class ProtocolConfig:
     """
     Configuration for DRGN binary protocol.

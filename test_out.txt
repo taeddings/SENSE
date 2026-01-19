@@ -1,0 +1,27 @@
+Testing SENSE Protocol Implementation
+==================================================
+
+[1/6] Testing imports...
+   All imports successful
+
+[2/6] Testing DRGNHeader...
+   DRGNHeader pack/unpack: PASSED
+
+[3/6] Testing BinaryParser...
+   BinaryParser read: PASSED
+   BinaryParser zero-copy: PASSED
+
+[4/6] Testing BufferBuilder...
+   BufferBuilder: PASSED
+
+[5/6] Testing SENSEMessage...
+   SENSEMessage roundtrip: PASSED
+   SENSEMessage response: PASSED
+
+[6/6] Testing CRC32...
+   CRC32 compute: PASSED
+   CRC verification: PASSED
+
+==================================================
+All tests PASSED!
+==================================================

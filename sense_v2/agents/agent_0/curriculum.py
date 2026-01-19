@@ -312,6 +312,11 @@ class CurriculumAgent(BaseAgent):
         self.enable_structured_format = enable_structured_format
         self._format_compliance_rate = 0.5
 
+        # Workplace feedback tracking
+        self._tool_success_rates: Dict[str, float] = {}
+        self._error_patterns: Dict[str, int] = {}
+        self._successful_tool_sequences: List[List[str]] = []
+
         # Initialize stages
         self._initialize_stages()
 
@@ -546,6 +551,9 @@ class CurriculumAgent(BaseAgent):
                 (1.0 if format_valid else 0.0) * 0.1
             )
 
+        # Analyze workplace feedback: tool usage and errors
+        workplace_feedback = self._analyze_workplace_feedback(output or "", success)
+
         # Record attempt with format tracking
         task.record_attempt(success, format_valid)
 
@@ -603,10 +611,89 @@ class CurriculumAgent(BaseAgent):
         if not success and task.attempts >= 2:
             feedback["hints"] = self._generate_hints(task)
 
+        # Incorporate workplace feedback into feedback
+        feedback.update(workplace_feedback)
+
+        return feedback
+
+    def _analyze_workplace_feedback(self, output: str, success: bool) -> Dict[str, Any]:
+        """
+        Analyze output for workplace feedback: tool usage, errors, and patterns.
+
+        Args:
+            output: Executor output string
+            success: Whether the task was successful
+
+        Returns:
+            Dictionary with workplace feedback metrics
+        """
+        feedback = {
+            "tools_used": [],
+            "errors_detected": [],
+            "tool_sequence": [],
+        }
+
+        if not output:
+            return feedback
+
+        # Extract tool calls (simple pattern matching)
+        tool_patterns = [
+            r"tool_call\s*:\s*(\w+)",
+            r"using\s+(\w+)\s+tool",
+            r"execute\s+(\w+)",
+            r"run\s+(\w+)",
+            r"(\w+)\s*command",
+        ]
+
+        tools_used = set()
+        for pattern in tool_patterns:
+            matches = re.findall(pattern, output, re.IGNORECASE)
+            tools_used.update(matches)
+
+        feedback["tools_used"] = list(tools_used)
+        feedback["tool_sequence"] = list(tools_used)  # Simple sequence
+
+        # Detect common errors
+        error_patterns = [
+            r"error\s*:",
+            r"failed",
+            r"permission denied",
+            r"command not found",
+            r"no such file",
+            r"syntax error",
+        ]
+
+        errors_found = []
+        for pattern in error_patterns:
+            if re.search(pattern, output, re.IGNORECASE):
+                errors_found.append(pattern)
+
+        feedback["errors_detected"] = errors_found
+
+        # Update tracking
+        if success and tools_used:
+            self._successful_tool_sequences.append(list(tools_used))
+            # Keep last 50 sequences
+            if len(self._successful_tool_sequences) > 50:
+                self._successful_tool_sequences = self._successful_tool_sequences[-50:]
+
+        # Update tool success rates
+        for tool in tools_used:
+            current_rate = self._tool_success_rates.get(tool, 0.5)
+            self._tool_success_rates[tool] = current_rate * 0.9 + (1.0 if success else 0.0) * 0.1
+
+        # Update error patterns
+        for error in errors_found:
+            self._error_patterns[error] = self._error_patterns.get(error, 0) + 1
+
+        # Add workplace insights to feedback
+        feedback["tool_success_rates"] = self._tool_success_rates.copy()
+        feedback["common_errors"] = sorted(self._error_patterns.items(), key=lambda x: x[1], reverse=True)[:3]
+
         return feedback
 
     def _generate_hints(self, task: CurriculumTask) -> List[str]:
-        """Generate hints for a struggling student."""
+        """Generate hints for a struggling student, incorporating workplace feedback."""
         hints = []
 
         if task.expected_tools:
@@ -616,6 +703,35 @@ class CurriculumAgent(BaseAgent):
             hints.append("Break the problem into smaller steps")
 
         hints.append("Review the error messages carefully")
+
+        # Workplace feedback hints
+        if self._tool_success_rates:
+            # Suggest highly successful tools
+            best_tools = sorted(self._tool_success_rates.items(), key=lambda x: x[1], reverse=True)[:2]
+            if best_tools:
+                tool_names = [tool for tool, _ in best_tools if _ > 0.7]
+                if tool_names:
+                    hints.append(f"Try using these successful tools: {', '.join(tool_names)}")
+
+        if self._error_patterns:
+            # Common error hints
+            common_errors = sorted(self._error_patterns.items(), key=lambda x: x[1], reverse=True)[:2]
+            for error_pattern, count in common_errors:
+                if "permission" in error_pattern.lower():
+                    hints.append("Check file permissions and user privileges")
+                elif "command not found" in error_pattern.lower():
+                    hints.append("Ensure the command is installed and in PATH")
+                elif "no such file" in error_pattern.lower():
+                    hints.append("Verify file paths and directory existence")
+                elif "syntax" in error_pattern.lower():
+                    hints.append("Check command syntax and arguments")
+
+        if self._successful_tool_sequences:
+            # Suggest successful sequences
+            recent_sequences = self._successful_tool_sequences[-3:]
+            if recent_sequences:
+                sequence_str = " -> ".join(recent_sequences[0])
+                hints.append(f"Consider this successful tool sequence: {sequence_str}")
 
         return hints
 

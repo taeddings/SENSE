@@ -176,7 +176,14 @@ class PopulationManager:
         if not hasattr(creator, "FitnessMax"):
             creator.create("FitnessMax", base.Fitness, weights=(1.0,))
 
+        if not hasattr(creator, "Individual"):
+            creator.create("Individual", ReasoningGenome, fitness=creator.FitnessMax)
+
         self._toolbox = base.Toolbox()
+
+        # Register population and individual creation
+        self._toolbox.register("individual", creator.Individual)
+        self._toolbox.register("population", tools.initRepeat, list, self._toolbox.individual)
 
         # Register selection operator (tournament selection)
         self._toolbox.register(
@@ -185,7 +192,25 @@ class PopulationManager:
             tournsize=3,
         )
 
-        self.logger.info("DEAP toolbox initialized")
+        # Register crossover operator using genome crossover
+        self._toolbox.register(
+            "mate",
+            self._deap_crossover,
+        )
+
+        # Register mutation operator using genome mutation
+        self._toolbox.register(
+            "mutate",
+            self._deap_mutate,
+        )
+
+        # Register evaluation placeholder (will be overridden)
+        self._toolbox.register(
+            "evaluate",
+            lambda ind: (0.0,),  # Placeholder
+        )
+
+        self.logger.info("DEAP toolbox initialized with enhanced operators")
 
     async def initialize_population(
         self,
@@ -270,25 +295,35 @@ class PopulationManager:
                 )
                 parent_a = self.population[parent_indices[0]]
                 parent_b = self.population[parent_indices[1]]
+
+                # Use DEAP variation operators
+                offspring = [parent_a, parent_b]
+                offspring = self._deap_var_and(
+                    offspring,
+                    crossover_prob=self.config.crossover_rate,
+                    mutation_prob=effective_mutation_rate,
+                    drift_metric=drift_metric,
+                )
+                child = offspring[0]  # Take first offspring
             else:
                 # Fallback: fitness-proportionate selection
                 parent_a, parent_b = self._select_parents(fitness_scores)
 
-            # Crossover
-            if random.random() < self.config.crossover_rate:
-                child = parent_a.crossover(parent_b)
-            else:
-                child = parent_a.mutate(
-                    mutation_rate=effective_mutation_rate,
-                    drift_metric=drift_metric,
-                )
+                # Crossover
+                if random.random() < self.config.crossover_rate:
+                    child = parent_a.crossover(parent_b)
+                else:
+                    child = parent_a.mutate(
+                        mutation_rate=effective_mutation_rate,
+                        drift_metric=drift_metric,
+                    )
 
-            # Mutation
-            if random.random() < effective_mutation_rate:
-                child = child.mutate(
-                    mutation_rate=effective_mutation_rate,
-                    drift_metric=drift_metric,
-                )
+                # Mutation
+                if random.random() < effective_mutation_rate:
+                    child = child.mutate(
+                        mutation_rate=effective_mutation_rate,
+                        drift_metric=drift_metric,
+                    )
 
             new_population.append(child)
 
@@ -348,6 +383,85 @@ class PopulationManager:
         )
 
         return self.population[indices[0]], self.population[indices[1]]
+
+    def _deap_var_and(
+        self,
+        population: List[ReasoningGenome],
+        crossover_prob: float,
+        mutation_prob: float,
+        drift_metric: float,
+    ) -> List[ReasoningGenome]:
+        """
+        Apply DEAP-style variation (crossover and mutation) to population.
+
+        Args:
+            population: List of genomes to vary
+            crossover_prob: Probability of crossover
+            mutation_prob: Probability of mutation
+            drift_metric: Current drift metric for adaptive mutation
+
+        Returns:
+            Varied population
+        """
+        if not DEAP_AVAILABLE or not self._toolbox:
+            return population
+
+        offspring = list(population)
+
+        # Apply crossover
+        for i in range(1, len(offspring), 2):
+            if random.random() < crossover_prob:
+                offspring[i-1], offspring[i] = self._toolbox.mate(
+                    offspring[i-1], offspring[i]
+                )
+
+        # Apply mutation
+        for i in range(len(offspring)):
+            if random.random() < mutation_prob:
+                offspring[i], = self._toolbox.mutate(
+                    offspring[i], drift_metric=drift_metric, mutation_rate=mutation_prob
+                )
+
+        return offspring
+
+    def _deap_crossover(
+        self,
+        parent_a: ReasoningGenome,
+        parent_b: ReasoningGenome,
+    ) -> Tuple[ReasoningGenome, ReasoningGenome]:
+        """
+        DEAP-compatible crossover operator.
+
+        Args:
+            parent_a: First parent genome
+            parent_b: Second parent genome
+
+        Returns:
+            Tuple of offspring genomes
+        """
+        offspring_a = parent_a.crossover(parent_b)
+        offspring_b = parent_b.crossover(parent_a)
+        return offspring_a, offspring_b
+
+    def _deap_mutate(
+        self,
+        genome: ReasoningGenome,
+        drift_metric: float = 0.0,
+        mutation_rate: float = 0.1,
+    ) -> Tuple[ReasoningGenome]:
+        """
+        DEAP-compatible mutation operator.
+
+        Args:
+            genome: Genome to mutate
+            drift_metric: Drift metric for adaptive mutation
+            mutation_rate: Base mutation rate
+
+        Returns:
+            Tuple containing mutated genome
+        """
+        mutated = genome.mutate(mutation_rate=mutation_rate, drift_metric=drift_metric)
+        return (mutated,)
 
     def _calculate_drift(self, current_fitness: List[float]) -> float:
         """

@@ -43,7 +43,7 @@
 
 ## Phase 4: Fusion & Modeling
 - [ ] Task: Create `sense_v2/engram/model.py`
-    - [ ] Create `sense_v2/engram/model.py` file
+    - [x] Create `sense_v2/engram/model.py` file
 - [ ] Task: Implement `EngramFusionLayer(nn.Module)` class
     - [ ] Write Failing Tests: Add tests for `EngramFusionLayer` initialization, component integration, hashing logic (multi-head aspect), and the `forward` pass computations.
     - [ ] Implement: Define `EngramFusionLayer` class inheriting from `nn.Module`.

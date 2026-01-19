@@ -1,5 +1,7 @@
 bcrypt==5.0.0
 Flask==3.0.0
+deap>=1.4.0  # For evolutionary algorithms in PopulationManager
+RestrictedPython>=8.0  # For safe reasoning code execution in ReasoningOrchestrator
 
 # Agent0 integration dependencies (enhanced rewards)
 nltk>=3.8.0  # For BLEU score calculation in diversity penalty

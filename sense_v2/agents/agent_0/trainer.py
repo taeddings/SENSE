@@ -21,6 +21,7 @@ from sense_v2.core.config import EvolutionConfig, MemoryAwareConfig
 from sense_v2.core.schemas import RewardSignal
 from sense_v2.agents.agent_0.curriculum import CurriculumAgent, CurriculumTask
 from sense_v2.agents.agent_0.executor import ExecutorAgent, ExecutionTrace
+from sense_v2.memory.agemem_integration import ReasoningMemoryManager
 from sense_v2.utils.dev_log import DevLog, StateLogger
 
 # Memory monitoring
@@ -325,6 +326,7 @@ class RewardComponents:
     format_reward: float
     tool_reward: float
     diversity_penalty: float
+    backward_transfer_reward: float
     total: float
 
     def to_dict(self) -> Dict[str, float]:
@@ -333,6 +335,7 @@ class RewardComponents:
             "format_reward": self.format_reward,
             "tool_reward": self.tool_reward,
             "diversity_penalty": self.diversity_penalty,
+            "backward_transfer_reward": self.backward_transfer_reward,
             "total": self.total,
         }
 
@@ -430,7 +433,9 @@ class GRPOTrainer:
         tool_reward_weight: float = 0.05,
         tool_reward_cap: int = 4,
         diversity_penalty_weight: float = 0.1,
+        backward_transfer_weight: float = 0.1,
         enable_enhanced_rewards: bool = True,
+        reasoning_memory_manager: Optional[ReasoningMemoryManager] = None,
         dev_log: Optional[DevLog] = None,
     ):
         self.curriculum = curriculum_agent
@@ -459,7 +464,11 @@ class GRPOTrainer:
         self.tool_reward_weight = tool_reward_weight
         self.tool_reward_cap = tool_reward_cap
         self.diversity_penalty_weight = diversity_penalty_weight
+        self.backward_transfer_weight = backward_transfer_weight
         self.enable_enhanced_rewards = enable_enhanced_rewards
+
+        # Reasoning memory for backward transfer
+        self.reasoning_memory = reasoning_memory_manager
 
         # Reward component tracking
         self.reward_component_history: List[Dict[str, Any]] = []
@@ -473,10 +482,11 @@ class GRPOTrainer:
 
         self.logger.info(f"Initialized population of {len(self.executors)} executors")
 
-    def compute_enhanced_reward(
+    async def compute_enhanced_reward(
         self,
         base_reward: float,
         output: str,
+        task: Optional[CurriculumTask] = None,
         all_outputs: Optional[List[str]] = None,
         output_index: int = 0,
     ) -> RewardComponents:
@@ -498,6 +508,7 @@ class GRPOTrainer:
                 format_reward=0.0,
                 tool_reward=0.0,
                 diversity_penalty=0.0,
+                backward_transfer_reward=0.0,
                 total=base_reward,
             )
 
@@ -518,14 +529,31 @@ class GRPOTrainer:
             if output_index < len(penalties):
                 div_penalty = penalties[output_index] * self.diversity_penalty_weight
 
+        # Compute backward transfer reward
+        bt_reward = 0.0
+        if self.reasoning_memory and task and base_reward > 0.5:  # Only for successful attempts
+            try:
+                # Search for similar successful traces
+                similar_traces = await self.reasoning_memory.retrieve_similar_traces(
+                    problem_description=task.description,
+                    limit=3
+                )
+                # Reward for leveraging past knowledge (number of similar successes)
+                successful_similar = sum(1 for trace in similar_traces if trace.outcome)
+                bt_reward = min(successful_similar * 0.1, 0.5) * self.backward_transfer_weight
+            except Exception as e:
+                self.logger.debug(f"Error computing backward transfer: {e}")
+                bt_reward = 0.0
+
         # Compute total reward
-        total = base_reward + fmt_reward + tool_rew - div_penalty
+        total = base_reward + fmt_reward + tool_rew - div_penalty + bt_reward
 
         return RewardComponents(
             base_reward=base_reward,
             format_reward=fmt_reward,
             tool_reward=tool_rew,
             diversity_penalty=div_penalty,
+            backward_transfer_reward=bt_reward,
             total=total,
         )
 
@@ -576,9 +604,10 @@ class GRPOTrainer:
                     output_str = all_outputs[result_idx]
 
                     # Compute enhanced reward with all components
-                    reward_components = self.compute_enhanced_reward(
+                    reward_components = await self.compute_enhanced_reward(
                         base_reward=base_reward.value,
                         output=output_str,
+                        task=task,
                         all_outputs=all_outputs,
                         output_index=result_idx,
                     )

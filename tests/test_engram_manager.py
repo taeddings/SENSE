@@ -86,6 +86,9 @@ class TestEngramManager:
             # Read magic signature
             magic = parser.read_bytes(4)
             assert bytes(magic) == b'DRGN'
+            del parser
+            import gc
+            gc.collect()
 
     def test_get_slice(self, temp_buffer_file):
         """Test getting a memoryview slice."""
@@ -94,6 +97,7 @@ class TestEngramManager:
 
             assert isinstance(view, memoryview)
             assert bytes(view) == b'DRGN'
+            del view
 
     def test_read_at(self, temp_buffer_file):
         """Test reading bytes at offset."""
@@ -134,6 +138,7 @@ class TestEngramManager:
             parser = manager.get_parser(offset=104)
             content = parser.read_string(13)
             assert content == 'Hello, World!'
+            del parser
 
     def test_resource_cleanup_on_error(self, temp_buffer_file):
         """Test that resources are cleaned up even on error."""
@@ -162,6 +167,7 @@ class TestEngramManager:
             # Modifying through the mmap should be visible in views
             # (Can't test mutation in read-only mode, but we verify views work)
             assert bytes(view2) == b'DRGN'
+            del view1, view2
 
 
 class TestMultiBufferManager:
@@ -186,6 +192,7 @@ class TestMultiBufferManager:
             for i, parser in enumerate(parsers):
                 shard_id = parser.read_string(6)
                 assert shard_id == f'SHARD{i}'
+            del parsers
 
     def test_resource_cleanup(self, temp_buffer_files):
         """Test that all buffers are cleaned up."""
@@ -222,6 +229,7 @@ class TestAsyncEngramManager:
             parser = manager.get_parser()
             magic = parser.read_bytes(4)
             assert bytes(magic) == b'DRGN'
+            del parser
 
     @pytest.mark.asyncio
     async def test_get_view(self, temp_buffer_file):
@@ -229,6 +237,7 @@ class TestAsyncEngramManager:
         async with AsyncEngramManager(temp_buffer_file) as manager:
             view = manager.get_view()
             assert bytes(view[:4]) == b'DRGN'
+            del view
 
 
 class TestUtilityFunctions:
@@ -334,6 +343,7 @@ class TestParserIntegration:
 
             total_read = sum(len(c) for c in data_chunks)
             assert total_read == manager.size
+            del parser
 
     def test_parser_position_tracking(self, temp_buffer_file):
         """Test parser position tracking."""
@@ -346,6 +356,7 @@ class TestParserIntegration:
 
             parser.skip(10)
             assert parser.position == 14
+            del parser
 
 
 if __name__ == '__main__':

@@ -136,10 +136,8 @@ class EngramManager:
             # Create memory map
             access = mmap.ACCESS_READ if self.read_only else mmap.ACCESS_WRITE
             self._mmap = mmap.mmap(self._file.fileno(), 0, access=access)
-            self._exit_stack.callback(self._mmap.close)
 
-            # Create memoryview for zero-copy access
-            self._view = memoryview(self._mmap)
+            # Note: memoryview created on demand to avoid persistent references
 
             self._is_open = True
             return self
@@ -170,8 +168,15 @@ class EngramManager:
 
         self._is_open = False
 
-        # Clear our memoryview reference
-        self._view = None
+        # Close mmap manually, catching BufferError if views are still exported
+        try:
+            if self._mmap:
+                self._mmap.close()
+        except Exception:
+            # External code still holds references to memoryview slices
+            # This is not ideal but we can't force them to release
+            # The mmap will remain open until process exit
+            pass
 
         # Force garbage collection to release any derived views
         gc.collect()
@@ -179,15 +184,8 @@ class EngramManager:
         self._mmap = None
         self._file = None
 
-        # Close the exit stack, catching and ignoring BufferError
-        # which can happen if external code still holds memoryview refs
-        try:
-            return self._exit_stack.__exit__(exc_type, exc_val, exc_tb)
-        except BufferError:
-            # External code still holds references to memoryview slices
-            # This is not ideal but we can't force them to release
-            # The mmap will be closed when the process exits
-            return False
+        # Close the exit stack
+        return self._exit_stack.__exit__(exc_type, exc_val, exc_tb)
 
     def _check_open(self) -> None:
         """Verify buffer is open."""
@@ -198,13 +196,13 @@ class EngramManager:
     def size(self) -> int:
         """Get the buffer size in bytes."""
         self._check_open()
-        return len(self._view)
+        return self._mmap.size()
 
     @property
     def view(self) -> memoryview:
         """Get the underlying memoryview (zero-copy)."""
         self._check_open()
-        return self._view
+        return memoryview(self._mmap)
 
     def get_parser(self, offset: int = 0) -> BinaryParser:
         """
@@ -218,8 +216,8 @@ class EngramManager:
         """
         self._check_open()
         if offset == 0:
-            return BinaryParser(self._view)
-        return BinaryParser(self._view[offset:])
+            return BinaryParser(memoryview(self._mmap))
+        return BinaryParser(memoryview(self._mmap)[offset:])
 
     def get_slice(self, start: int, end: int) -> memoryview:
         """
@@ -233,7 +231,7 @@ class EngramManager:
             memoryview slice
         """
         self._check_open()
-        return self._view[start:end]
+        return memoryview(self._mmap)[start:end]
 
     def read_at(self, offset: int, length: int) -> bytes:
         """

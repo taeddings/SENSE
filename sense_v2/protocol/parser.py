@@ -81,6 +81,10 @@ class BinaryParser:
 
     __slots__ = ('_buffer', '_position', '_length', '_nesting_depth')
 
+    def __del__(self):
+        """Release buffer reference on deletion."""
+        self._buffer = None
+
     def __init__(self, buffer: Union[bytes, bytearray, memoryview]):
         """
         Initialize parser with a buffer.

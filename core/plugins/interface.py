@@ -13,7 +13,7 @@ Plugins provide:
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Union, AsyncIterator
+from typing import Any, Dict, List, Optional, Tuple, Union, AsyncIterator
 from enum import Enum
 from datetime import datetime
 import asyncio
