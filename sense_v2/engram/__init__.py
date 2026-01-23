@@ -41,4 +41,5 @@ __all__ = [
     "EngramTokenizer",
     "MMapEmbeddingStorage",
     "EngramFusionLayer",
+, "EngramMemoryManager"
 ]

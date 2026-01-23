@@ -10,12 +10,21 @@ Features:
 - Sensor status compensation
 - Memory-based efficiency optimization
 - Reasoning mode selection
+- Automatic complexity estimation (Context Engineering integration)
+- Adaptive retrieval depth gating
+
+Updates:
+- Added estimate_complexity() for automatic prompt analysis
+- Added calculate_retrieval_depth() for memory query optimization
+- Added allocate() method as primary entry point
+- BudgetAllocation now includes memory_k and complexity_estimate
 """
 
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
 import logging
+import re
 from datetime import datetime
 
 # Memory monitoring
@@ -47,7 +56,9 @@ class BudgetAllocation:
     tokens: int
     mode: ReasoningMode
     verification_depth: int
-    rationale: str
+    memory_k: int = 3  # Retrieval depth for memory queries
+    complexity_estimate: float = 0.5  # Stored complexity score
+    rationale: str = ""
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -55,6 +66,8 @@ class BudgetAllocation:
             "tokens": self.tokens,
             "mode": self.mode.value,
             "verification_depth": self.verification_depth,
+            "memory_k": self.memory_k,
+            "complexity_estimate": self.complexity_estimate,
             "rationale": self.rationale,
             "metadata": self.metadata,
         }
@@ -90,6 +103,153 @@ class ResourceStatus:
             return cls(psutil_available=False, sensor_status="ERROR")
 
 
+def estimate_complexity(prompt: str) -> float:
+    """
+    Estimate task complexity using cheap heuristics (no LLM call).
+    
+    Factors considered:
+    - Entity density (proper nouns, technical terms)
+    - Question structure (analytical vs. factual)
+    - Length as proxy for scope
+    - Multi-step indicators
+    - Code/technical content markers
+    
+    Args:
+        prompt: The task prompt or query
+        
+    Returns:
+        Complexity score from 0.0 (trivial) to 1.0 (highly complex)
+    """
+    if not prompt or not prompt.strip():
+        return 0.1
+    
+    prompt_lower = prompt.lower()
+    words = prompt.split()
+    word_count = len(words)
+    
+    score = 0.0
+    
+    # --- Entity density (proper nouns, capitalized terms) ---
+    # Simple heuristic: words starting with uppercase that aren't sentence starters
+    capitalized = [w for w in words[1:] if w and w[0].isupper()]
+    entity_ratio = len(capitalized) / max(word_count, 1)
+    score += min(entity_ratio * 1.5, 0.25)
+    
+    # --- Question structure ---
+    # Analytical questions are more complex
+    analytical_keywords = {
+        "compare", "contrast", "analyze", "evaluate", "assess",
+        "synthesize", "critique", "differentiate", "justify",
+        "implications", "consequences", "tradeoffs", "trade-offs",
+    }
+    if any(kw in prompt_lower for kw in analytical_keywords):
+        score += 0.20
+    
+    # Explanatory questions are medium complexity
+    explanatory_keywords = {"why", "how", "explain", "describe", "elaborate"}
+    if any(kw in prompt_lower for kw in explanatory_keywords):
+        score += 0.12
+    
+    # Factual questions are lower complexity
+    factual_keywords = {"what is", "who is", "when did", "where is", "define"}
+    if any(kw in prompt_lower for kw in factual_keywords):
+        score += 0.05
+    
+    # --- Length proxy for scope ---
+    # Longer prompts typically indicate more complex tasks
+    length_score = min(word_count / 150, 0.20)
+    score += length_score
+    
+    # --- Multi-step indicators ---
+    multi_step_keywords = {
+        "then", "after", "first", "second", "finally", "next",
+        "steps", "step by step", "process", "procedure", "sequence",
+        "followed by", "before", "once", "subsequently",
+    }
+    multi_step_count = sum(1 for kw in multi_step_keywords if kw in prompt_lower)
+    score += min(multi_step_count * 0.08, 0.20)
+    
+    # --- Code/technical markers ---
+    code_indicators = {
+        "```", "def ", "class ", "function", "import ", "return ",
+        "error", "bug", "debug", "traceback", "exception",
+        "implement", "refactor", "optimize", "algorithm",
+    }
+    if any(ind in prompt_lower or ind in prompt for ind in code_indicators):
+        score += 0.15
+    
+    # --- Negation/constraint complexity ---
+    constraint_keywords = {
+        "without", "except", "unless", "but not", "excluding",
+        "must not", "cannot", "shouldn't", "avoid", "constraint",
+    }
+    if any(kw in prompt_lower for kw in constraint_keywords):
+        score += 0.10
+    
+    # --- List/enumeration requests ---
+    list_patterns = [
+        r'\d+\s+(things|items|points|reasons|ways|examples)',
+        r'list\s+(all|the|some)',
+        r'give me\s+\d+',
+    ]
+    for pattern in list_patterns:
+        if re.search(pattern, prompt_lower):
+            score += 0.08
+            break
+    
+    # --- Domain complexity markers ---
+    domain_markers = {
+        # Technical domains
+        "architecture", "infrastructure", "distributed", "concurrent",
+        "async", "synchronization", "latency", "throughput",
+        # Analytical domains  
+        "hypothesis", "correlation", "regression", "statistical",
+        "probability", "variance", "confidence interval",
+        # Business domains
+        "stakeholder", "requirements", "specification", "deliverable",
+    }
+    domain_hits = sum(1 for m in domain_markers if m in prompt_lower)
+    score += min(domain_hits * 0.05, 0.15)
+    
+    return min(score, 1.0)
+
+
+def calculate_retrieval_depth(
+    complexity: float,
+    base_k: int = 3,
+    max_k: int = 10,
+    min_k: int = 1,
+) -> int:
+    """
+    Calculate adaptive retrieval depth based on query complexity.
+    
+    Simple tasks get fewer memories (faster, less noise).
+    Complex tasks get more memories (richer context).
+    
+    Args:
+        complexity: Complexity score (0.0 to 1.0)
+        base_k: Base retrieval count
+        max_k: Maximum retrieval count
+        min_k: Minimum retrieval count
+        
+    Returns:
+        Number of memories to retrieve
+    """
+    # Linear scaling with complexity
+    # complexity 0.0 -> min_k
+    # complexity 0.5 -> base_k  
+    # complexity 1.0 -> max_k
+    
+    if complexity < 0.3:
+        k = min_k + int((base_k - min_k) * (complexity / 0.3))
+    elif complexity < 0.7:
+        k = base_k
+    else:
+        k = base_k + int((max_k - base_k) * ((complexity - 0.7) / 0.3))
+    
+    return max(min_k, min(max_k, k))
+
+
 class AdaptiveReasoningBudget:
     """
     Adaptive reasoning budget allocator.
@@ -115,12 +275,21 @@ class AdaptiveReasoningBudget:
 
     Example:
         budget = AdaptiveReasoningBudget()
+        
+        # New primary interface with auto-estimation
+        allocation = budget.allocate(
+            prompt="Compare the tradeoffs between LoRA and full fine-tuning",
+        )
+        print(f"Complexity: {allocation.complexity_estimate:.2f}")
+        print(f"Memory retrieval depth: {allocation.memory_k}")
+        print(f"Allocated {allocation.tokens} tokens in {allocation.mode.value} mode")
+        
+        # Legacy interface with explicit complexity
         allocation = budget.allocate_tokens(
             task_complexity=0.7,
             available_vram=8192,
             sensor_status="ONLINE",
         )
-        print(f"Allocated {allocation.tokens} tokens in {allocation.mode.value} mode")
     """
 
     # Configuration constants
@@ -138,6 +307,11 @@ class AdaptiveReasoningBudget:
 
     # Compensatory multiplier for sensor offline
     COMPENSATORY_MULTIPLIER: float = 2.0
+
+    # Retrieval depth bounds
+    BASE_RETRIEVAL_K: int = 3
+    MIN_RETRIEVAL_K: int = 1
+    MAX_RETRIEVAL_K: int = 10
 
     def __init__(
         self,
@@ -167,6 +341,57 @@ class AdaptiveReasoningBudget:
         # Tracking
         self._allocation_history: List[BudgetAllocation] = []
         self._total_tokens_allocated: int = 0
+
+    def allocate(
+        self,
+        prompt: str,
+        sensor_status: str = "ONLINE",
+        memory_context: Optional[Dict[str, Any]] = None,
+        available_vram: Optional[int] = None,
+    ) -> BudgetAllocation:
+        """
+        Full allocation with automatic complexity estimation.
+        
+        This is the primary entry point that:
+        1. Estimates task complexity from the prompt
+        2. Calculates appropriate retrieval depth
+        3. Allocates token budget
+        
+        Args:
+            prompt: The task prompt or query
+            sensor_status: Sensor status
+            memory_context: Optional pre-existing memory context
+            available_vram: Optional VRAM override
+            
+        Returns:
+            BudgetAllocation with tokens, memory_k, and mode
+        """
+        # Step 1: Estimate complexity
+        complexity = estimate_complexity(prompt)
+        
+        # Step 2: Calculate retrieval depth
+        memory_k = calculate_retrieval_depth(
+            complexity,
+            base_k=self.BASE_RETRIEVAL_K,
+            max_k=self.MAX_RETRIEVAL_K,
+            min_k=self.MIN_RETRIEVAL_K,
+        )
+        
+        # Step 3: Get token allocation using existing method
+        allocation = self.allocate_tokens(
+            task_complexity=complexity,
+            available_vram=available_vram,
+            sensor_status=sensor_status,
+            memory_context=memory_context,
+        )
+        
+        # Step 4: Inject retrieval depth and complexity into allocation
+        allocation.memory_k = memory_k
+        allocation.complexity_estimate = complexity
+        allocation.metadata["auto_estimated"] = True
+        allocation.metadata["prompt_word_count"] = len(prompt.split())
+        
+        return allocation
 
     def allocate_tokens(
         self,
@@ -368,6 +593,7 @@ class AdaptiveReasoningBudget:
         allocations = self._allocation_history
         tokens = [a.tokens for a in allocations]
         modes = [a.mode.value for a in allocations]
+        complexities = [a.complexity_estimate for a in allocations]
 
         from collections import Counter
         mode_counts = Counter(modes)
@@ -378,6 +604,7 @@ class AdaptiveReasoningBudget:
             "average_tokens": sum(tokens) / len(tokens),
             "min_tokens": min(tokens),
             "max_tokens": max(tokens),
+            "average_complexity": sum(complexities) / len(complexities),
             "mode_distribution": dict(mode_counts),
             "recent_allocations": [a.to_dict() for a in allocations[-5:]],
         }
@@ -390,24 +617,42 @@ class AdaptiveReasoningBudget:
 
 # Convenience functions
 def allocate_reasoning_budget(
-    task_complexity: float,
+    prompt: str,
     sensor_status: str = "ONLINE",
     memory_context: Optional[Dict[str, Any]] = None,
+    task_complexity: Optional[float] = None,
 ) -> BudgetAllocation:
     """
     Convenience function to allocate reasoning budget.
+    
+    If task_complexity is provided, uses it directly.
+    Otherwise, estimates complexity from the prompt.
 
     Args:
-        task_complexity: Task complexity (0-1)
+        prompt: The task prompt or query
         sensor_status: Sensor status
         memory_context: Memory retrieval context
+        task_complexity: Optional explicit complexity (skips estimation)
 
     Returns:
         BudgetAllocation
     """
     allocator = AdaptiveReasoningBudget()
-    return allocator.allocate_tokens(
-        task_complexity=task_complexity,
-        sensor_status=sensor_status,
-        memory_context=memory_context,
-    )
+    
+    if task_complexity is not None:
+        # Use explicit complexity
+        allocation = allocator.allocate_tokens(
+            task_complexity=task_complexity,
+            sensor_status=sensor_status,
+            memory_context=memory_context,
+        )
+        allocation.memory_k = calculate_retrieval_depth(task_complexity)
+        allocation.complexity_estimate = task_complexity
+        return allocation
+    else:
+        # Auto-estimate from prompt
+        return allocator.allocate(
+            prompt=prompt,
+            sensor_status=sensor_status,
+            memory_context=memory_context,
+        )

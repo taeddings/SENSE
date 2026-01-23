@@ -9,6 +9,7 @@ Handles:
 - Retrieval-augmented reasoning (similar trace lookup)
 - Consolidation of reasoning patterns
 - Drift-aware memory management
+- Context Engineering integration (adaptive retrieval depth)
 """
 
 from dataclasses import dataclass, field
@@ -22,6 +23,10 @@ from sense_v2.core.config import MemoryConfig
 from sense_v2.memory.agemem import AgeMem, MemoryType, MemoryEntry
 from sense_v2.memory.engram_schemas import ReasoningTrace, DriftSnapshot
 from sense_v2.memory.embeddings import EmbeddingProvider
+from sense_v2.llm.reasoning.compute_allocation import (
+    estimate_complexity,
+    calculate_retrieval_depth,
+)
 
 
 @dataclass
@@ -37,6 +42,12 @@ class ReasoningMemoryConfig:
     # Retrieval parameters
     max_similar_traces: int = 5
     similarity_threshold: float = 0.7
+
+    # Context Engineering: Adaptive retrieval depth bounds
+    min_retrieval_k: int = 1
+    base_retrieval_k: int = 3
+    max_retrieval_k: int = 10
+    use_adaptive_retrieval: bool = True  # Enable automatic complexity-based k
 
     # Consolidation parameters
     consolidation_batch_size: int = 10
@@ -85,6 +96,9 @@ class ReasoningMemoryManager(BaseMemory):
         self.traces_stored = 0
         self.retrievals_performed = 0
         self.consolidations_done = 0
+        self.adaptive_retrievals = 0
+        self._complexity_history: List[float] = []
+        self._k_history: List[int] = []
 
     async def store_reasoning_trace(self, trace: ReasoningTrace) -> bool:
         """
@@ -152,19 +166,54 @@ class ReasoningMemoryManager(BaseMemory):
         problem_description: str,
         k: Optional[int] = None,
         similarity_threshold: Optional[float] = None,
+        use_adaptive_k: Optional[bool] = None,
     ) -> List[Tuple[ReasoningTrace, float]]:
         """
         Retrieve similar reasoning traces for retrieval-augmented reasoning.
 
         Args:
             problem_description: Text description of the current problem
-            k: Number of traces to retrieve (default: config.max_similar_traces)
+            k: Number of traces to retrieve (default: adaptive or config.max_similar_traces)
             similarity_threshold: Minimum similarity score (default: config.similarity_threshold)
+            use_adaptive_k: Override config.use_adaptive_retrieval for this call
 
         Returns:
             List of (ReasoningTrace, similarity_score) tuples
+
+        Context Engineering Integration:
+            When k is not specified and adaptive retrieval is enabled, the retrieval
+            depth is automatically calculated based on problem complexity:
+            - Simple problems (<0.3 complexity) → fewer memories (1-3)
+            - Medium problems (0.3-0.7) → base k (3)
+            - Complex problems (>0.7) → more memories (3-10)
         """
-        k = k or self.config.max_similar_traces
+        # Determine whether to use adaptive k
+        adaptive = use_adaptive_k if use_adaptive_k is not None else self.config.use_adaptive_retrieval
+
+        if k is None:
+            if adaptive:
+                # Context Engineering: Calculate retrieval depth from complexity
+                complexity = estimate_complexity(problem_description)
+                k = calculate_retrieval_depth(
+                    complexity=complexity,
+                    base_k=self.config.base_retrieval_k,
+                    max_k=self.config.max_retrieval_k,
+                    min_k=self.config.min_retrieval_k,
+                )
+                self.logger.debug(
+                    f"Adaptive retrieval: complexity={complexity:.2f}, k={k}"
+                )
+                # Track adaptive retrieval stats
+                self.adaptive_retrievals += 1
+                self._complexity_history.append(complexity)
+                self._k_history.append(k)
+                # Keep history bounded
+                if len(self._complexity_history) > 100:
+                    self._complexity_history = self._complexity_history[-100:]
+                    self._k_history = self._k_history[-100:]
+            else:
+                k = self.config.max_similar_traces
+
         threshold = similarity_threshold or self.config.similarity_threshold
 
         try:
@@ -278,13 +327,57 @@ class ReasoningMemoryManager(BaseMemory):
         Returns:
             Dict with various statistics
         """
-        return {
+        stats = {
             "traces_stored": self.traces_stored,
             "retrievals_performed": self.retrievals_performed,
             "consolidations_done": self.consolidations_done,
             "cache_size": len(self._trace_cache),
             "avg_retrieval_success": self.retrievals_performed / max(1, self.traces_stored),
         }
+
+        # Add Context Engineering stats
+        if self._complexity_history:
+            stats["context_engineering"] = {
+                "adaptive_retrievals": self.adaptive_retrievals,
+                "avg_complexity": sum(self._complexity_history) / len(self._complexity_history),
+                "avg_k": sum(self._k_history) / len(self._k_history),
+                "complexity_range": (min(self._complexity_history), max(self._complexity_history)),
+                "k_range": (min(self._k_history), max(self._k_history)),
+            }
+
+        return stats
+
+    def estimate_query_complexity(self, query: str) -> float:
+        """
+        Estimate the complexity of a query without performing retrieval.
+
+        Useful for pre-flight checks or UI feedback.
+
+        Args:
+            query: The query text
+
+        Returns:
+            Complexity score from 0.0 to 1.0
+        """
+        return estimate_complexity(query)
+
+    def get_recommended_k(self, query: str) -> int:
+        """
+        Get the recommended retrieval depth for a query.
+
+        Args:
+            query: The query text
+
+        Returns:
+            Recommended number of items to retrieve
+        """
+        complexity = estimate_complexity(query)
+        return calculate_retrieval_depth(
+            complexity=complexity,
+            base_k=self.config.base_retrieval_k,
+            max_k=self.config.max_retrieval_k,
+            min_k=self.config.min_retrieval_k,
+        )
 
     async def _generate_problem_embedding(self, trace: ReasoningTrace) -> List[float]:
         """Generate embedding for problem description."""

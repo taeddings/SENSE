@@ -463,6 +463,97 @@ This ensures evolved agents optimize for both accuracy AND memory efficiency.
 
 ---
 
+### 5.2 Context Engineering
+
+SENSE-v2 implements adaptive context management to optimize reasoning token budgets and memory retrieval depth based on task complexity.
+
+**Location:** `sense_v2/llm/reasoning/compute_allocation.py`
+
+#### Complexity Estimation
+
+Automatic task complexity scoring using cheap heuristics (no LLM call):
+
+```python
+from sense_v2.llm.reasoning.compute_allocation import estimate_complexity
+
+complexity = estimate_complexity("Compare the tradeoffs between LoRA and full fine-tuning")
+# Returns: ~0.65 (analytical question with technical terms)
+```
+
+| Factor | Weight | Description |
+|--------|--------|-------------|
+| Entity density | 0.25 max | Proper nouns, technical terms |
+| Question structure | 0.20 | Analytical > Explanatory > Factual |
+| Length | 0.20 max | Word count as scope proxy |
+| Multi-step indicators | 0.20 max | Sequential keywords (then, first, next) |
+| Code/technical markers | 0.15 | Implementation-related terms |
+| Constraints | 0.10 | Negation/exclusion keywords |
+| Domain markers | 0.15 max | Technical/analytical vocabulary |
+
+#### Adaptive Retrieval Depth
+
+Memory query depth scales with complexity via `calculate_retrieval_depth()`:
+
+| Complexity Range | Retrieval Depth (k) | Rationale |
+|------------------|---------------------|-----------|
+| Low (<0.3) | 1-3 memories | Simple queries need less context |
+| Medium (0.3-0.7) | 3 memories (base) | Standard retrieval |
+| High (>0.7) | 3-10 memories | Complex tasks benefit from richer context |
+
+```python
+from sense_v2.llm.reasoning.compute_allocation import calculate_retrieval_depth
+
+k = calculate_retrieval_depth(complexity=0.8, base_k=3, max_k=10)
+# Returns: 6 (scaled up for high complexity)
+```
+
+#### Primary Entry Point: allocate()
+
+The `allocate()` method combines complexity estimation, retrieval depth calculation, and token budget allocation in one call:
+
+```python
+from sense_v2.llm.reasoning.compute_allocation import AdaptiveReasoningBudget
+
+budget = AdaptiveReasoningBudget()
+allocation = budget.allocate(
+    prompt="Compare the tradeoffs between LoRA and full fine-tuning",
+)
+
+print(f"Complexity: {allocation.complexity_estimate:.2f}")   # 0.65
+print(f"Memory k: {allocation.memory_k}")                    # 5
+print(f"Tokens: {allocation.tokens}")                        # 819
+print(f"Mode: {allocation.mode.value}")                      # balanced
+```
+
+#### Integration with ReasoningGenome
+
+`genome.py` provides `get_reasoning_config()` returning parameters for AdaptiveReasoningBudget:
+
+```python
+config = genome.get_reasoning_config()
+# Returns:
+# {
+#     "base_budget": 1024,
+#     "verification_depth": 1,
+#     "thinking_patterns": ["Let me analyze..."],
+#     "temperature": 0.7,
+#     "grounding_weight": 1.5,
+#     "hallucination_threshold": 0.5,
+# }
+```
+
+The `grounding_weights` field in ReasoningGenome defines three-tier grounding emphasis:
+
+```python
+grounding_weights: Dict[str, float] = {
+    "synthetic": 0.4,    # Math/code verification
+    "realworld": 0.3,    # Web/API fact checking
+    "experiential": 0.3  # Action outcome verification
+}
+```
+
+---
+
 ## 6. API Layer
 
 ### Flask REST Endpoints
@@ -557,7 +648,10 @@ sense_v2/
 ├── llm/
 │   ├── base.py           # LLM base classes
 │   ├── providers.py      # LLM providers
-│   └── kernels/          # Memory-aware kernels [NEW]
+│   ├── reasoning/        # Context Engineering [NEW]
+│   │   ├── __init__.py
+│   │   └── compute_allocation.py  # AdaptiveReasoningBudget + estimate_complexity
+│   └── kernels/          # Memory-aware kernels
 │       ├── __init__.py   # Backend detection
 │       ├── functional.py # PyTorch chunked fallback
 │       └── triton_src.py # Triton CUDA/ROCm kernels

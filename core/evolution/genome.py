@@ -150,7 +150,7 @@ class ReasoningGenome(Genome):
     verification_depth: int = 1  # Number of self-correction loops
 
     # Grounding configuration
-    grounding_weight: float = 1.5  # Weight for sensor alignment in fitness
+    grounding_weights: Dict[str, float] = field(default_factory=lambda: {"synthetic": 0.4, "realworld": 0.3, "experiential": 0.3})  # Weight for sensor alignment in fitness
     hallucination_threshold: float = 0.5  # Below this, flag as hallucination
     sensor_trust_level: float = 0.8  # How much to trust sensor data vs model
 

@@ -48,6 +48,7 @@ from typing import Optional, Union, List, Tuple, AsyncIterator
 from pathlib import Path
 
 from sense_v2.protocol.parser import BinaryParser
+from sense_v2.core.config import EngramConfig
 from sense_v2.protocol.constants import MAX_MESSAGE_SIZE
 from sense_v2.protocol.exceptions import BufferError
 
@@ -375,6 +376,8 @@ class AsyncEngramManager:
             self._manager = None
         return False
 
+
+
     @property
     def size(self) -> int:
         """Buffer size."""
@@ -459,3 +462,41 @@ def verify_buffer_integrity(path: str, expected_magic: bytes = None) -> bool:
             return manager.size > 0
     except Exception:
         return False
+
+class EngramMemoryManager:
+    \"\"\"
+    High-level memory manager for Engram conditional memory architecture.
+    Handles storage, retrieval, and pruning with age and relevance.
+    \"\"\"
+    def __init__(self, config: EngramConfig):
+        self.config = config
+        self.memories: list[dict] = []
+
+    def store_memory(self, memory: dict):
+        # Validate memory dict
+        required_keys = {'content', 'age', 'relevance', 'timestamp'}
+        if not all(key in memory for key in required_keys):
+            raise ValueError(f"Invalid memory format: missing keys {required_keys - set(memory.keys())}")
+        if memory['relevance'] < self.config.relevance_threshold:
+            return  # Conditional storage
+        if len(self.memories) >= self.config.max_memories:
+            self.prune_old_memories()
+        self.memories.append(memory)
+
+    def retrieve_memories(self, query: str, max_results: int = 10) -> list[dict]:
+        # TODO: Implement adaptive retrieval with AgeMem
+        # For now, simple filter
+        relevant = [m for m in self.memories if query.lower() in m.get('content', '').lower()]
+        # Apply age decay
+        decayed = [m for m in relevant if self._apply_age_decay(m) > self.config.relevance_threshold]
+        return decayed[:max_results]
+
+    def prune_old_memories(self):
+        # TODO: Implement full decay
+        self.memories = [m for m in self.memories if self._apply_age_decay(m) > 0.1]
+
+    def _apply_age_decay(self, memory: dict) -> float:
+        age = memory.get('age', 0)
+        relevance = memory.get('relevance', 0)
+        decayed = relevance * (1 - self.config.age_decay_rate * age)
+        return max(0, decayed)

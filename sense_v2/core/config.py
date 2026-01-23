@@ -282,6 +282,62 @@ class GroundingConfig:
 
 
 @dataclass
+class ContextEngineeringConfig:
+    """
+    Configuration for Context Engineering system.
+
+    Controls automatic complexity estimation, adaptive retrieval depth,
+    and context-aware reasoning budget allocation.
+    """
+    # Complexity estimation
+    enabled: bool = True
+
+    # Complexity scoring weights (factors from estimate_complexity)
+    entity_density_weight: float = 0.25
+    question_structure_weight: float = 0.20
+    length_weight: float = 0.20
+    multi_step_weight: float = 0.20
+    code_markers_weight: float = 0.15
+    constraint_weight: float = 0.10
+    domain_markers_weight: float = 0.15
+
+    # Adaptive retrieval depth bounds
+    min_retrieval_k: int = 1
+    base_retrieval_k: int = 3
+    max_retrieval_k: int = 10
+    use_adaptive_retrieval: bool = True
+
+    # Complexity thresholds for retrieval depth tiers
+    low_complexity_threshold: float = 0.3
+    high_complexity_threshold: float = 0.7
+
+    # Integration with reasoning budget
+    auto_estimate_for_allocation: bool = True
+    log_complexity_scores: bool = False
+
+    def get_retrieval_depth(self, complexity: float) -> int:
+        """
+        Calculate retrieval depth based on complexity score.
+
+        Args:
+            complexity: Complexity score (0.0 to 1.0)
+
+        Returns:
+            Number of items to retrieve
+        """
+        if complexity < self.low_complexity_threshold:
+            # Linear scale from min_k to base_k
+            ratio = complexity / self.low_complexity_threshold
+            return self.min_retrieval_k + int((self.base_retrieval_k - self.min_retrieval_k) * ratio)
+        elif complexity < self.high_complexity_threshold:
+            return self.base_retrieval_k
+        else:
+            # Linear scale from base_k to max_k
+            ratio = (complexity - self.high_complexity_threshold) / (1.0 - self.high_complexity_threshold)
+            return self.base_retrieval_k + int((self.max_retrieval_k - self.base_retrieval_k) * ratio)
+
+
+@dataclass
 class ProtocolConfig:
     """
     Configuration for DRGN binary protocol.
@@ -320,6 +376,7 @@ class Config:
     engram: EngramConfig = field(default_factory=EngramConfig)
     memory_aware: MemoryAwareConfig = field(default_factory=MemoryAwareConfig)
     protocol: ProtocolConfig = field(default_factory=ProtocolConfig)
+    context_engineering: ContextEngineeringConfig = field(default_factory=ContextEngineeringConfig)
 
     # Global settings
     log_level: str = "INFO"
@@ -351,6 +408,7 @@ class Config:
         engram = EngramConfig(**data.get("engram", {})) if "engram" in data else EngramConfig()
         memory_aware = MemoryAwareConfig(**data.get("memory_aware", {})) if "memory_aware" in data else MemoryAwareConfig()
         protocol = ProtocolConfig(**data.get("protocol", {})) if "protocol" in data else ProtocolConfig()
+        context_engineering = ContextEngineeringConfig(**data.get("context_engineering", {})) if "context_engineering" in data else ContextEngineeringConfig()
 
         return cls(
             hardware=hardware,
@@ -360,6 +418,7 @@ class Config:
             engram=engram,
             memory_aware=memory_aware,
             protocol=protocol,
+            context_engineering=context_engineering,
             log_level=data.get("log_level", "INFO"),
             log_file=data.get("log_file", "sense_v2.log"),
             dev_log_file=data.get("dev_log_file", "dev_log.json"),
