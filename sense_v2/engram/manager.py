@@ -464,10 +464,10 @@ def verify_buffer_integrity(path: str, expected_magic: bytes = None) -> bool:
         return False
 
 class EngramMemoryManager:
-    \"\"\"
+    """
     High-level memory manager for Engram conditional memory architecture.
     Handles storage, retrieval, and pruning with age and relevance.
-    \"\"\"
+    """
     def __init__(self, config: EngramConfig):
         self.config = config
         self.memories: list[dict] = []

@@ -22,6 +22,8 @@ from .plugins import (
     ForgeStatus,
     create_tool_forge,
 )
+from .memory.ltm import AgeMem
+from ..bridge import Bridge
 
 __all__ = [
     # Orchestrator
@@ -39,4 +41,8 @@ __all__ = [
     "ProposedPlugin",
     "ForgeStatus",
     "create_tool_forge",
+    # Memory
+    "AgeMem",
+    # Bridge
+    "Bridge",
 ]

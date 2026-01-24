@@ -6,7 +6,7 @@ Part of Phase 1: Three-Tier Grounding System
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 from enum import Enum
 
 from sense_v2.core.schemas import ToolResult  # Assuming existing schema for results

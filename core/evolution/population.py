@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional, Tuple, Callable
 import logging
 import random
 import asyncio
-from sense_v2.grounding import GroundingSystem
+# from sense_v2.grounding import GroundingSystem  # Legacy, comment out for Phase 2
 from datetime import datetime
 import json
 import numpy as np

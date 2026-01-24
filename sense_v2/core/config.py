@@ -383,7 +383,7 @@ class Config:
     log_file: str = "sense_v2.log"
     dev_log_file: str = "dev_log.json"
 
-    # Model settings (vLLM with ROCm)
+    # Model settings (supports openai/gpt-4, anthropic/claude-3, ollama/llama3, lmstudio/gpt-4, http://localhost:1234/v1/completions, transformers/gpt2)
     model_name: str = "meta-llama/Llama-2-7b-hf"
     model_dtype: str = "float16"
 
