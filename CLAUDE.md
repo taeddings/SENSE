@@ -1,9 +1,9 @@
-# CLAUDE.md — SENSE v2.3 Development Protocol
+# CLAUDE.md — SENSE v3.0 Development Protocol
 
 **Repository:** `taeddings/SENSE`
 **Design Rationale:** `RATIONALE.md`
-**Last Updated:** 2026-01-23
-**Status:** Active Development — Phase 2 (Reasoning & Agency)
+**Last Updated:** 2026-01-24
+**Status:** Production-Ready — v3.0 Complete (Import Chain Fixed)
 
 ---
 
@@ -38,7 +38,22 @@
 **Location:** `sense/interface/personas/`
 - `architect.md`: Planning & Decomposition.
 - `worker.md`: Code Execution (from Agent-Zero).
-- `critic.md`: **NEW** Review & Verification.
+- `critic.md`: Review & Verification.
+
+### Layer 5: Evolution & Memory
+**Location:** `sense/core/evolution/`, `sense/core/memory/`
+- `curriculum.py`: Adaptive task generation.
+- `grpo.py`: Evolutionary optimization.
+- `ltm.py`: AgeMem procedural RAG.
+
+### Layer 6: Agency & Safety
+**Location:** `sense/bridge/`, `sense/llm/`
+- `bridge.py`: Safe OS interactions with EmergencyStop.
+- `model_backend.py`: Multi-provider LLM support.
+
+### Layer 7: Deployment
+**Location:** `sense/dashboard.py`, `sense/api.py`, `Dockerfile`
+- Streamlit dashboard, FastAPI server, Docker deployment.
 
 ---
 
@@ -111,11 +126,21 @@ class ReasoningOrchestrator:
 - [x] Bridge Driver Interface
 - [x] Context Engineering: AdaptiveReasoningBudget
 
-### Phase 2: Reasoning & Agency (Current Sprint)
-- [ ] Reflexion Loop: Implement ReasoningOrchestrator phases (Architect/Worker/Critic).
-- [ ] The Tool Forge: Implement `sense/core/plugins/forge.py`.
-- [ ] Tool Persistence: Allow PluginManager to hot-load user scripts.
-- [ ] Three-Tier Grounding: Connect grounding/ modules to the Orchestrator.
+### Phase 2: Reasoning & Agency (Completed)
+- [x] Reflexion Loop: Implemented ReasoningOrchestrator phases (Architect/Worker/Critic).
+- [x] The Tool Forge: Implemented `sense/core/plugins/forge.py`.
+- [x] Tool Persistence: PluginManager hot-loads user scripts.
+- [x] Three-Tier Grounding: Connected grounding/ modules to the Orchestrator.
+
+### Phase 3: Self-Evolution & Production (Completed)
+- [x] Curriculum Agent: Adaptive task generation.
+- [x] GRPO Trainer: Evolutionary optimization.
+- [x] AgeMem RAG: Procedural memory retrieval.
+- [x] Bridge: Safe OS interactions.
+- [x] ModelBackend: Multi-LLM support.
+- [x] Dashboard: Streamlit UI.
+- [x] API Server: FastAPI endpoints.
+- [x] Docker: Deployment with GPU.
 
 ### Phase 3: Self-Evolution
 - [ ] Curriculum Agent: Auto-generate coding challenges.

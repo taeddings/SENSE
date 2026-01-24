@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sense"
+version = "3.0.0"
+description = "SENSE: Self-Evolving Network & Semantic Engine"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "torch",
+    "numpy",
+    "psutil",
+    "streamlit",
+]
+
+[project.scripts]
+sense-evolve = "sense.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["sense*", "sense_v2*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = ["tools", "agent-zero", "Agent0"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

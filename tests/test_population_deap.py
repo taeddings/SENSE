@@ -1,10 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, patch
-# from sense_v2.core.evolution.population import PopulationManager, GenerationStats  # Legacy, skipped for Phase 2
-PopulationManager = type('PopulationManager', (), {})
-GenerationStats = type('GenerationStats', (), {})
+from sense.core.evolution.population import PopulationManager, GenerationStats
 from sense_v2.core.config import EvolutionConfig
-from core.evolution.genome import ReasoningGenome, create_random_genome
+from sense.core.evolution.genome import ReasoningGenome, create_random_genome
 
 
 @pytest.fixture
@@ -13,7 +11,8 @@ def evolution_config():
     return EvolutionConfig(
         population_size=4,
         mutation_rate=0.1,
-        crossover_rate=0.8
+        crossover_rate=0.8,
+        selection_top_k=2  # Reduced to ensure evolution loop runs (pop 4 > elites 2)
     )
 
 
@@ -43,10 +42,11 @@ def sample_genomes():
     ]
 
 
+@pytest.mark.asyncio
 class TestPopulationManagerDEAPIntegration:
     """Test suite for PopulationManager DEAP integration."""
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', True)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', True)
     def test_deap_setup_enabled(self, population_manager):
         """Test DEAP toolbox setup when DEAP is available."""
         # The setup should have been called in __init__
@@ -55,7 +55,7 @@ class TestPopulationManagerDEAPIntegration:
         assert hasattr(population_manager._toolbox, 'mate')
         assert hasattr(population_manager._toolbox, 'mutate')
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', False)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', False)
     def test_deap_setup_disabled(self):
         """Test behavior when DEAP is not available."""
         config = EvolutionConfig()
@@ -63,7 +63,7 @@ class TestPopulationManagerDEAPIntegration:
 
         assert manager._toolbox is None
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', True)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', True)
     def test_deap_var_and_with_deap(self, population_manager, sample_genomes):
         """Test variation with DEAP operators."""
         # Setup
@@ -74,8 +74,8 @@ class TestPopulationManagerDEAPIntegration:
         # Execute
         result = population_manager._deap_var_and(
             sample_genomes[:2],
-            crossover_prob=0.8,
-            mutation_prob=0.1,
+            crossover_prob=1.0,  # Ensure crossover happens
+            mutation_prob=1.0,   # Ensure mutation happens
             drift_metric=0.2
         )
 
@@ -84,7 +84,7 @@ class TestPopulationManagerDEAPIntegration:
         population_manager._toolbox.mate.assert_called()
         population_manager._toolbox.mutate.assert_called()
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', False)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', False)
     def test_deap_var_and_without_deap(self, population_manager, sample_genomes):
         """Test variation fallback when DEAP is not available."""
         # Execute
@@ -98,7 +98,7 @@ class TestPopulationManagerDEAPIntegration:
         # Assert - should return unchanged population
         assert result == sample_genomes[:2]
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', True)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', True)
     def test_deap_crossover(self, population_manager, sample_genomes):
         """Test DEAP-compatible crossover."""
         # Execute
@@ -113,7 +113,7 @@ class TestPopulationManagerDEAPIntegration:
         assert offspring1.genome_id != sample_genomes[0].genome_id
         assert offspring2.genome_id != sample_genomes[1].genome_id
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', True)
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', True)
     def test_deap_mutate(self, population_manager, sample_genomes):
         """Test DEAP-compatible mutation."""
         original_budget = sample_genomes[0].reasoning_budget
@@ -127,7 +127,7 @@ class TestPopulationManagerDEAPIntegration:
         assert isinstance(mutated, ReasoningGenome)
         assert isinstance(mutated, tuple) or isinstance(mutated, ReasoningGenome)
 
-    def test_evolve_with_fallback_selection(self, population_manager, sample_genomes):
+    async def test_evolve_with_fallback_selection(self, population_manager, sample_genomes):
         """Test evolution with fallback selection when DEAP not available."""
         # Setup
         population_manager._toolbox = None  # Disable DEAP
@@ -138,7 +138,7 @@ class TestPopulationManagerDEAPIntegration:
         population_manager._select_parents = MagicMock(return_value=(sample_genomes[0], sample_genomes[1]))
 
         # Execute
-        stats = population_manager.evolve(fitness_scores)
+        stats = await population_manager.evolve(fitness_scores)
 
         # Assert
         assert isinstance(stats, GenerationStats)
@@ -146,8 +146,8 @@ class TestPopulationManagerDEAPIntegration:
         assert stats.population_size == 4
         assert population_manager.current_generation == 1
 
-    @patch('sense_v2.core.evolution.population.DEAP_AVAILABLE', True)
-    def test_evolve_with_deap_selection(self, population_manager, sample_genomes):
+    @patch('sense.core.evolution.population.DEAP_AVAILABLE', True)
+    async def test_evolve_with_deap_selection(self, population_manager, sample_genomes):
         """Test evolution with DEAP selection."""
         # Setup
         population_manager._toolbox = MagicMock()
@@ -159,7 +159,7 @@ class TestPopulationManagerDEAPIntegration:
         population_manager._deap_var_and = MagicMock(return_value=[sample_genomes[0]])
 
         # Execute
-        stats = population_manager.evolve(fitness_scores)
+        stats = await population_manager.evolve(fitness_scores)
 
         # Assert
         assert isinstance(stats, GenerationStats)
@@ -178,25 +178,28 @@ class TestPopulationManagerDEAPIntegration:
         assert parent_b in sample_genomes
         assert parent_a != parent_b
 
-    def test_generation_stats_calculation(self, population_manager, sample_genomes):
+    async def test_generation_stats_calculation(self, population_manager, sample_genomes):
         """Test generation statistics calculation."""
         population_manager.population = sample_genomes
         fitness_scores = [0.8, 0.6, 0.7, 0.5]
 
         # Execute
-        stats = population_manager.evolve(fitness_scores)
+        stats = await population_manager.evolve(fitness_scores)
 
         # Assert
         assert stats.best_fitness == 0.8
         assert stats.worst_fitness == 0.5
         assert abs(stats.average_fitness - 0.65) < 0.01  # (0.8+0.6+0.7+0.5)/4
-        assert stats.elite_count == 4  # selection_top_k default
+        assert stats.elite_count == 2  # Matches selection_top_k
 
-    def test_drift_calculation(self, population_manager):
+    async def test_drift_calculation(self, population_manager, sample_genomes):
         """Test drift metric calculation."""
+        # Setup population
+        population_manager.population = sample_genomes
+        
         # First generation
         fitness1 = [0.5, 0.6, 0.7, 0.8]
-        population_manager.evolve(fitness1)
+        await population_manager.evolve(fitness1)
 
         # Second generation with different distribution
         fitness2 = [0.3, 0.4, 0.5, 0.6]
@@ -206,14 +209,14 @@ class TestPopulationManagerDEAPIntegration:
         assert isinstance(drift, float)
         assert drift >= 0.0
 
-    def test_population_checkpointing(self, population_manager, sample_genomes):
+    async def test_population_checkpointing(self, population_manager, sample_genomes):
         """Test population checkpointing to LTM."""
         # Setup
         population_manager.population = sample_genomes
         fitness_scores = [0.8, 0.6, 0.7, 0.5]
 
         # Execute
-        stats = population_manager.evolve(fitness_scores)
+        stats = await population_manager.evolve(fitness_scores)
 
         # Assert
         assert stats.generation_id == 1
