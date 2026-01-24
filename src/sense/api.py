@@ -2,8 +2,8 @@
 
 from fastapi import FastAPI
 import asyncio
-from sense.core.reasoning_orchestrator import ReasoningOrchestrator
-from sense.core.evolution.grpo import GRPOTrainer
+from .core.reasoning_orchestrator import ReasoningOrchestrator
+from .core.evolution.grpo import GRPOTrainer
 
 app = FastAPI(title="SENSE API", version="3.0")
 

@@ -22,7 +22,7 @@ from .memory.ltm import AgeMem
 from ..bridge import Bridge
 from ..llm.model_backend import get_model
 try:
-    from sense.core.grounding import Tier1Grounding, Tier2Grounding, Tier3Grounding
+    from .grounding import Tier1Grounding, Tier2Grounding, Tier3Grounding
 except ImportError:
     # Fallback for Phase 2 stub
     class Tier1Grounding:

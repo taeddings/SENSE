@@ -15,7 +15,7 @@ from typing import Any, Dict, Optional, Union, AsyncIterator
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from sense.core.plugins.interface import (
+from .interface import (
     PluginABC,
     PluginCapability,
     PluginManifest,

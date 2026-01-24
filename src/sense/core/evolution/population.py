@@ -23,7 +23,7 @@ from datetime import datetime
 import json
 import numpy as np
 
-from sense.core.evolution.genome import ReasoningGenome, Genome, create_random_genome
+from .genome import ReasoningGenome, Genome, create_random_genome
 from sense_v2.core.config import EvolutionConfig
 
 # Optional DEAP import (for Sprint 3.1)

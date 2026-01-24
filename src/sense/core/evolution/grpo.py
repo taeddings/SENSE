@@ -9,8 +9,8 @@ from deap import base, creator, tools
 import logging
 import multiprocessing as mp
 import random
-from sense.core.evolution.genome import Genome  # Assume Genome class
-from sense.core.evolution.population import PopulationManager
+from .genome import Genome
+from .population import PopulationManager
 
 logger = logging.getLogger("GRPOTrainer")
 

@@ -7,14 +7,14 @@ import time
 import threading
 import logging
 from io import StringIO
-# sys.path.insert(0, '..')  # Removed in favor of src layout
-from sense.core.reasoning_orchestrator import ReasoningOrchestrator
-from sense.core.evolution.curriculum import CurriculumAgent
-from sense.core.evolution.grpo import GRPOTrainer
-from sense.core.memory.ltm import AgeMem
-from sense.core.plugins.forge import ToolForge
-from sense.bridge import Bridge, EmergencyStop
-from llm.model_backend import get_model
+
+from .core.reasoning_orchestrator import ReasoningOrchestrator
+from .core.evolution.curriculum import CurriculumAgent
+from .core.evolution.grpo import GRPOTrainer
+from .core.memory.ltm import AgeMem
+from .core.plugins.forge import ToolForge
+from .bridge import Bridge, EmergencyStop
+from .llm.model_backend import get_model
 from sense_v2.core.config import Config
 
 # Global state
@@ -98,7 +98,7 @@ with tabs[1]:
         st.write(f"Confidence: {result.verification.confidence}")
         st.json(result.to_dict())
 
-with tab2:
+with tabs[2]:
     config = {}
     agent = CurriculumAgent(config)
     if st.button("Generate Next Task"):
@@ -106,7 +106,7 @@ with tab2:
         st.write(task)
         agent.advance_stage()
 
-with tab3:
+with tabs[3]:
     config = {}
     mem = AgeMem(config)
     if st.button("Add Memory"):
@@ -116,7 +116,7 @@ with tab3:
         similar = asyncio.run(mem.retrieve_similar("test"))
         st.json(similar)
 
-with tab4:
+with tabs[4]:
     forge = ToolForge()
     if st.button("Scan Memory"):
         candidates = forge.scan_memory([])

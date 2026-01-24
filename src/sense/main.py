@@ -5,10 +5,10 @@ import sys
 import asyncio
 import time
 import logging
-from sense.core.reasoning_orchestrator import ReasoningOrchestrator
-from sense.core.evolution.curriculum import CurriculumAgent
-from sense.core.evolution.grpo import GRPOTrainer
-from sense.core.memory.ltm import AgeMem
+from .core.reasoning_orchestrator import ReasoningOrchestrator
+from .core.evolution.curriculum import CurriculumAgent
+from .core.evolution.grpo import GRPOTrainer
+from .core.memory.ltm import AgeMem
 
 logging.basicConfig(level=logging.INFO)
 
