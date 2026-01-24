@@ -1,21 +1,36 @@
 """SENSE v3.0 Comprehensive Dashboard - Main Entry Point"""
 
+import os
+import sys
 import streamlit as st
 import asyncio
-import sys
 import time
 import threading
 import logging
 from io import StringIO
 
-from .core.reasoning_orchestrator import ReasoningOrchestrator
-from .core.evolution.curriculum import CurriculumAgent
-from .core.evolution.grpo import GRPOTrainer
-from .core.memory.ltm import AgeMem
-from .core.plugins.forge import ToolForge
-from .bridge import Bridge, EmergencyStop
-from .llm.model_backend import get_model
-from sense_v2.core.config import Config
+# Handle both script and module execution
+if __name__ == "__main__" or not __package__:
+    # Running as script - add parent to path
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from sense.core.reasoning_orchestrator import ReasoningOrchestrator
+    from sense.core.evolution.curriculum import CurriculumAgent
+    from sense.core.evolution.grpo import GRPOTrainer
+    from sense.core.memory.ltm import AgeMem
+    from sense.core.plugins.forge import ToolForge
+    from sense.bridge import Bridge, EmergencyStop
+    from sense.llm.model_backend import get_model
+    from sense_v2.core.config import Config
+else:
+    # Running as module
+    from .core.reasoning_orchestrator import ReasoningOrchestrator
+    from .core.evolution.curriculum import CurriculumAgent
+    from .core.evolution.grpo import GRPOTrainer
+    from .core.memory.ltm import AgeMem
+    from .core.plugins.forge import ToolForge
+    from .bridge import Bridge, EmergencyStop
+    from .llm.model_backend import get_model
+    from sense_v2.core.config import Config
 
 # Global state
 if 'evolution_running' not in st.session_state:
@@ -122,4 +137,4 @@ with tabs[4]:
         candidates = forge.scan_memory([])
         st.write("Candidates:", len(candidates))
 
-st.sidebar.info("SENSE v2.3 - Intelligence Amplification")
+st.sidebar.info("SENSE v3.0 - Intelligence Amplification")

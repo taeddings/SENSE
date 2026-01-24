@@ -5,10 +5,21 @@ import sys
 import asyncio
 import time
 import logging
-from .core.reasoning_orchestrator import ReasoningOrchestrator
-from .core.evolution.curriculum import CurriculumAgent
-from .core.evolution.grpo import GRPOTrainer
-from .core.memory.ltm import AgeMem
+
+# Handle both script and module execution
+if __name__ == "__main__" or not __package__:
+    # Running as script - add parent to path
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from sense.core.reasoning_orchestrator import ReasoningOrchestrator
+    from sense.core.evolution.curriculum import CurriculumAgent
+    from sense.core.evolution.grpo import GRPOTrainer
+    from sense.core.memory.ltm import AgeMem
+else:
+    # Running as module
+    from .core.reasoning_orchestrator import ReasoningOrchestrator
+    from .core.evolution.curriculum import CurriculumAgent
+    from .core.evolution.grpo import GRPOTrainer
+    from .core.memory.ltm import AgeMem
 
 logging.basicConfig(level=logging.INFO)
 
