@@ -631,8 +631,10 @@ class ToolForge:
         self,
         plugins_dir: Optional[Path] = None,
         tool_registry: Optional[Any] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
         self.logger = logging.getLogger("ToolForge")
+        self.config = config or {}
 
         # Set plugins directory
         if plugins_dir is None:

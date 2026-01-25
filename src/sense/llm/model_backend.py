@@ -34,7 +34,7 @@ class ModelBackend:
         elif self.backend_type == 'ollama':
             return os.getenv('OLLAMA_HOST', 'http://localhost:11434') + '/api/generate'
         elif self.backend_type == 'lmstudio':
-            return 'http://localhost:1234/v1/completions'
+            return 'http://192.168.0.243:1234/v1/completions'
         elif self.backend_type == 'vllm':
             return 'http://localhost:8000/v1/completions'
         elif self.backend_type.startswith('http'):

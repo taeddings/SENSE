@@ -16,7 +16,10 @@ dependencies = [
 ]
 
 [project.scripts]
+sense = "sense.autonomous:main"
 sense-evolve = "sense.main:main"
+sense-dashboard = "sense.dashboard:main"
+sense-api = "sense.api:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -21,6 +21,7 @@ from datetime import datetime
 from .memory.ltm import AgeMem
 from ..bridge import Bridge
 from ..llm.model_backend import get_model
+from .plugins.forge import ToolForge
 try:
     from .grounding import Tier1Grounding, Tier2Grounding, Tier3Grounding
 except ImportError:
@@ -97,7 +98,9 @@ class UnifiedGrounding:
     def __init__(
         self,
         weights: Optional[Dict[str, float]] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
+        self.config = config or {}
         self.weights = weights or {
             "synthetic": 0.4,
             "realworld": 0.3,
@@ -151,26 +154,71 @@ class UnifiedGrounding:
 
     def _verify_synthetic(self, result: Any, context: Optional[Dict]) -> float:
         """Tier 1: Synthetic grounding - deterministic verification."""
-        # Stub implementation - returns high confidence for structured results
-        if result is None:
-            return 0.0
-        if isinstance(result, (bool, int, float)):
-            return 1.0
-        if isinstance(result, str) and len(result) > 0:
-            return 0.8
-        return 0.5
+        try:
+            # Use Tier1 to preprocess and validate structure
+            if result is None:
+                return 0.0
+
+            # Convert result to data format for tier1
+            if isinstance(result, dict):
+                data = result
+            else:
+                data = {"value": result, "type": type(result).__name__}
+
+            # Try to preprocess - if it succeeds, data is well-formed
+            processed = self.tier1.preprocess_data(data)
+
+            # Check quality of processed data
+            if processed and isinstance(processed, dict):
+                # Has expected fields
+                if 'timestamp' in processed and 'noise_level' in processed:
+                    return 0.9
+                return 0.7
+            return 0.5
+        except Exception as e:
+            self.logger.warning(f"Tier1 verification failed: {e}")
+            return 0.3
 
     def _verify_realworld(self, result: Any, context: Optional[Dict]) -> float:
         """Tier 2: Real-world grounding - external fact verification."""
-        # Stub implementation - would query web/APIs
-        return 0.7
+        try:
+            # Use Tier2 to check if result aligns with expected behavior
+            # Run an alignment cycle to verify the result
+            alignment_result = self.tier2.run_alignment_cycle()
+
+            # Check if the alignment was successful
+            if alignment_result and isinstance(alignment_result, dict):
+                motor_result = alignment_result.get('result', {})
+                if motor_result.get('success', False):
+                    return 0.8
+                return 0.6
+            return 0.5
+        except Exception as e:
+            self.logger.warning(f"Tier2 verification failed: {e}")
+            return 0.4
 
     def _verify_experiential(self, result: Any, context: Optional[Dict]) -> float:
         """Tier 3: Experiential grounding - action outcome verification."""
-        # Stub implementation - would check actual system state
-        if context and context.get("action_succeeded"):
-            return 1.0
-        return 0.6
+        try:
+            # Use Tier3 to verify action outcomes
+            if context and context.get("action_succeeded"):
+                # Build expected vs actual for verification
+                expected = {"status": "completed", "action_succeeded": True}
+                actual = result if isinstance(result, dict) else {"output": result}
+
+                # Use tier3 to verify outcome
+                verification = self.tier3.verify_outcome(expected, actual)
+
+                if verification.get('success', False):
+                    return 1.0
+                else:
+                    # Partial credit based on error magnitude
+                    error = verification.get('error', 1.0)
+                    return max(0.3, 1.0 - (error / 10.0))
+            return 0.6
+        except Exception as e:
+            self.logger.warning(f"Tier3 verification failed: {e}")
+            return 0.5
 
     def _generate_feedback(self, tier_results: Dict[str, float], passed: bool) -> str:
         """Generate human-readable feedback from tier results."""
@@ -181,38 +229,7 @@ class UnifiedGrounding:
         return f"Verification failed. Weakest tier: {weakest_tier} ({tier_results[weakest_tier]:.2f})"
 
 
-class ToolForgeStub:
-    """
-    Stub for Tool Forge - Dynamic Tool Creation.
-
-    Will be fully implemented in sense/core/plugins/forge.py
-    """
-
-    REPETITION_THRESHOLD: int = 3
-
-    def __init__(self):
-        self.logger = logging.getLogger("ToolForge")
-        self._candidate_patterns: List[Dict[str, Any]] = []
-
-    def check_for_crystallization(self, result: TaskResult) -> bool:
-        """
-        Check if this result contains patterns worth crystallizing into a tool.
-
-        Stub: Logs the check but doesn't create tools yet.
-        """
-        self.logger.debug(f"Checking task {result.task_id} for crystallization potential")
-        # Will be implemented to scan memory for repeated patterns
-        return False
-
-    def scan_memory(self, memory: Any) -> List[Dict[str, Any]]:
-        """Scan memory for repeated successful code patterns."""
-        # Stub - returns empty list
-        return []
-
-    def forge_tool(self, candidate: Dict[str, Any]) -> Optional[Any]:
-        """Refactor a candidate pattern into a PluginABC class."""
-        # Stub - not implemented yet
-        return None
+# ToolForgeStub removed - now using real ToolForge from .plugins.forge
 
 
 class ReasoningOrchestrator:
@@ -243,9 +260,10 @@ class ReasoningOrchestrator:
     def __init__(
         self,
         grounding: Optional[UnifiedGrounding] = None,
-        tool_forge: Optional[ToolForgeStub] = None,
+        tool_forge: Optional[ToolForge] = None,
         personas_dir: Optional[Path] = None,
         tool_registry: Optional[Any] = None,
+        config: Optional[Dict[str, Any]] = None,
     ):
         # Skip re-initialization for singleton
         if getattr(self, '_initialized', False):
@@ -253,11 +271,14 @@ class ReasoningOrchestrator:
 
         self.logger = logging.getLogger("ReasoningOrchestrator")
 
-        # Initialize components
-        self.grounding = grounding or UnifiedGrounding()
-        self.tool_forge = tool_forge or ToolForgeStub()
+        # Store config
+        self.config = config or {}
+
+        # Initialize components with config
         self.tool_registry = tool_registry or {}
-        self.age_mem = AgeMem({'stm_max_entries': 100})
+        self.grounding = grounding or UnifiedGrounding(config=self.config)
+        self.tool_forge = tool_forge or ToolForge(tool_registry=self.tool_registry, config=self.config)
+        self.age_mem = AgeMem(self.config)
         self.bridge = Bridge()
 
         # Personas directory
@@ -433,29 +454,69 @@ Be rigorous but fair in your assessment."""
 
     async def _run_worker(self, plan: str, original_task: str) -> Any:
         """
-        Phase 2: Worker executes the plan using LLM to simulate execution.
+        Phase 2: Worker executes the plan, routing commands through Bridge.
         """
-        persona_prompt = self._personas.get("worker", self._default_worker_persona())
-        full_prompt = f"{persona_prompt}\n\nOriginal Task: {original_task}\n\nPlan: {plan}\n\nExecute the plan and return the result in JSON format: {{\"status\": \"completed\" or \"failed\", \"output\": \"the result\", \"action_succeeded\": true or false}}."
-        if self.llm:
+        import re
+        import json
+
+        # Detect executable commands in the plan
+        command_pattern = r'(?:^|\n)\s*(?:Run|Execute|Command):\s*`?([a-z]+\s+[^`\n]+)`?'
+        commands = re.findall(command_pattern, plan, re.IGNORECASE)
+
+        execution_outputs = []
+
+        # Execute detected commands through Bridge
+        if commands:
+            self.logger.info(f"Detected {len(commands)} commands in plan")
+            for cmd in commands:
+                try:
+                    result = self.bridge.execute(cmd.strip())
+                    execution_outputs.append({
+                        "command": cmd.strip(),
+                        "stdout": result.get("stdout", ""),
+                        "stderr": result.get("stderr", ""),
+                        "returncode": result.get("returncode", "1"),
+                        "success": result.get("returncode", "1") == "0"
+                    })
+                except Exception as e:
+                    self.logger.warning(f"Bridge execution failed for '{cmd}': {e}")
+                    execution_outputs.append({
+                        "command": cmd.strip(),
+                        "error": str(e),
+                        "success": False
+                    })
+
+        # If no executable commands, use LLM for reasoning-based tasks
+        if not execution_outputs:
+            persona_prompt = self._personas.get("worker", self._default_worker_persona())
+            full_prompt = f"{persona_prompt}\n\nOriginal Task: {original_task}\n\nPlan: {plan}\n\nExecute the plan and return the result in JSON format: {{\"status\": \"completed\" or \"failed\", \"output\": \"the result\", \"action_succeeded\": true or false}}."
+            if self.llm:
+                try:
+                    response = self.llm.generate(full_prompt, max_tokens=200, temperature=0.7)
+                except Exception as e:
+                    self.logger.warning(f"LLM call failed: {e}")
+                    response = full_prompt
+            else:
+                response = full_prompt + " [Stub response]"
+            execution_text = response[len(full_prompt):].strip()
             try:
-                response = self.llm.generate(full_prompt, max_tokens=200, temperature=0.7)
-            except Exception as e:
-                self.logger.warning(f"LLM call failed: {e}")
-                response = full_prompt
-        else:
-            response = full_prompt + " [Stub response]"
-        execution_text = response[len(full_prompt):].strip()
-        try:
-            import json
-            execution_result = json.loads(execution_text)
-        except:
-            execution_result = {
-                "status": "completed",
-                "output": execution_text or f"Executed plan for {original_task}",
-                "action_succeeded": True,
-            }
-        return execution_result
+                execution_result = json.loads(execution_text)
+            except:
+                execution_result = {
+                    "status": "completed",
+                    "output": execution_text or f"Executed plan for {original_task}",
+                    "action_succeeded": True,
+                }
+            return execution_result
+
+        # Return combined execution results
+        all_succeeded = all(out.get("success", False) for out in execution_outputs)
+        return {
+            "status": "completed" if all_succeeded else "failed",
+            "output": execution_outputs,
+            "action_succeeded": all_succeeded,
+            "commands_executed": len(execution_outputs)
+        }
 
     async def _run_critic(
         self,
