@@ -1,14 +1,14 @@
 """
-SENSE v3.0 Autonomous Runner - Unified Entry Point
+SENSE v3.0+ Autonomous Runner - Unified Entry Point
 
 Provides three operational modes:
-1. continuous: Full self-evolution loop (Curriculum → GRPO → Orchestrator → Memory)
+1. continuous: Full self-evolution loop (Meta-Curriculum → GRPO → Orchestrator → Memory)
 2. single: Solve a single task and exit
 3. evolve: Run GRPO evolution for specified generations
 
 Usage:
     sense --mode continuous
-    sense --mode single --task "Calculate 15 * 23"
+    sense --mode single --task \"Calculate 15 * 23\"
     sense --mode evolve --generations 10
 """
 
@@ -32,6 +32,7 @@ if __name__ == "__main__" or not __package__:
     from sense.core.memory.ltm import AgeMem
     from sense.core.plugins.forge import ToolForge
     from sense.bridge import Bridge, EmergencyStop
+    from sense.meta_learning import MetaCurriculum  # v6.0 Integration
     try:
         from sense_v2.core.config import Config
         CONFIG_AVAILABLE = True
@@ -46,6 +47,7 @@ else:
     from .core.memory.ltm import AgeMem
     from .core.plugins.forge import ToolForge
     from .bridge import Bridge, EmergencyStop
+    from .meta_learning import MetaCurriculum  # v6.0 Integration
     try:
         from sense_v2.core.config import Config
         CONFIG_AVAILABLE = True
@@ -55,7 +57,7 @@ else:
 
 class AutonomousRunner:
     """
-    Unified runner that wires all SENSE v3.0 components together.
+    Unified runner that wires all SENSE components together.
 
     Manages the full autonomous system with proper config propagation
     and intuitive operational modes.
@@ -96,7 +98,12 @@ class AutonomousRunner:
         )
 
         # Initialize evolution components
-        self.curriculum = CurriculumAgent(config)
+        # v3.0 Curriculum (Legacy/Fallback)
+        self.curriculum = CurriculumAgent(config) 
+        
+        # v6.0 Meta-Curriculum (Active)
+        self.meta_curriculum = MetaCurriculum(config)
+        
         self.grpo = GRPOTrainer(config)
         self.population = self.grpo.population_manager
 
@@ -118,6 +125,7 @@ class AutonomousRunner:
             'model_name': 'gpt2',
             'evolution_interval': 5,  # Evolve every N iterations
             'loop_sleep': 10,  # Seconds between loops in continuous mode
+            'meta_learning_enabled': True, # v6.0 flag
         }
 
     async def run(self, mode: str = "continuous", **kwargs) -> Any:
@@ -150,12 +158,13 @@ class AutonomousRunner:
         """
         Run continuous self-evolution loop.
 
-        This is the full autonomous mode: Curriculum → Task → Orchestrator → Memory → Evolution
+        This is the full autonomous mode: Meta-Curriculum → Task → Orchestrator → Memory → Evolution
         Runs indefinitely until interrupted or EmergencyStop is triggered.
         """
         self.logger.info("Starting continuous self-evolution loop...")
         training_interval = self.config.get('evolution_interval', 5)
         loop_sleep = self.config.get('loop_sleep', 10)
+        use_meta = self.config.get('meta_learning_enabled', True)
 
         try:
             while True:
@@ -167,8 +176,17 @@ class AutonomousRunner:
                 self.loop_count += 1
                 self.logger.info(f"=== Loop {self.loop_count} ===")
 
-                # Phase 1: Generate task from curriculum
-                task = await self.curriculum.get_next_task()
+                # Phase 1: Generate task
+                if use_meta:
+                    self.logger.info("Generating task via Meta-Curriculum...")
+                    # Pass LLM backend to generator if available
+                    task = await self.meta_curriculum.get_next_task(
+                        llm_backend=getattr(self.orchestrator, 'llm', None)
+                    )
+                else:
+                    self.logger.info("Generating task via Standard Curriculum...")
+                    task = await self.curriculum.get_next_task()
+                
                 self.logger.info(f"Task: {task}")
 
                 # Phase 2: Solve task with orchestrator
@@ -188,7 +206,11 @@ class AutonomousRunner:
                     result.success
                 )
 
-                # Phase 4: Update genome fitness
+                # Phase 4: Feedback Loop (Meta-Learning Update)
+                if use_meta:
+                    self.meta_curriculum.update(task, result)
+
+                # Phase 5: Update genome fitness (GRPO)
                 if self.population.population:
                     best_genome = self.population.get_best_genome()
                     if best_genome:
@@ -197,7 +219,7 @@ class AutonomousRunner:
                         best_genome.fitness = best_genome.fitness + fitness_delta
                         self.logger.info(f"Genome fitness: {best_genome.fitness:.2f}")
 
-                # Phase 5: Evolve population periodically
+                # Phase 6: Evolve population periodically
                 if self.loop_count % training_interval == 0:
                     self.logger.info("Running evolution step...")
                     try:
@@ -341,7 +363,7 @@ Examples:
   sense --mode continuous
 
   # Solve single task
-  sense --mode single --task "Calculate 15 * 23"
+  sense --mode single --task \"Calculate 15 * 23\"
 
   # Run GRPO evolution only
   sense --mode evolve --generations 10
