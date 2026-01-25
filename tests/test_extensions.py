@@ -7,7 +7,7 @@ import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 from typing import Any
 
-from sense_v2.core.extensions import (
+from sense.core.extensions import (
     Extension,
     ExtensionPoint,
     ExtensionContext,
@@ -352,7 +352,7 @@ class TestBuiltInExtensions:
     def setup_method(self):
         """Import built-ins to ensure registration."""
         # Built-ins are auto-registered on import
-        from sense_v2.core.extensions import (
+        from sense.core.extensions import (
             LoggingInitExtension,
             ToolCallLoggingExtension,
             ToolResultLoggingExtension,
@@ -363,7 +363,7 @@ class TestBuiltInExtensions:
     @pytest.mark.asyncio
     async def test_logging_init_extension(self):
         """LoggingInitExtension logs agent initialization."""
-        from sense_v2.core.extensions import LoggingInitExtension
+        from sense.core.extensions import LoggingInitExtension
 
         ext = LoggingInitExtension()
         mock_agent = Mock()
@@ -376,7 +376,7 @@ class TestBuiltInExtensions:
     @pytest.mark.asyncio
     async def test_monologue_timing(self):
         """MonologueTimingExtension tracks timing."""
-        from sense_v2.core.extensions import (
+        from sense.core.extensions import (
             MonologueTimingExtension,
             MonologueEndTimingExtension,
         )
@@ -399,7 +399,7 @@ class TestBuiltInExtensions:
     @pytest.mark.asyncio
     async def test_tool_logging_extensions(self):
         """Tool logging extensions work correctly."""
-        from sense_v2.core.extensions import (
+        from sense.core.extensions import (
             ToolCallLoggingExtension,
             ToolResultLoggingExtension,
         )

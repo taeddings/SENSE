@@ -5,6 +5,7 @@ Genome representation for the evolutionary architecture with reasoning optimizat
 Part of Sprint 1: The Core
 """
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple
 import hashlib
@@ -15,9 +16,9 @@ from datetime import datetime
 
 
 @dataclass
-class Genome:
+class Genome(ABC):
     """
-    Base class for all genome types in the SENSE evolutionary system.
+    Abstract base class for all genome types in the SENSE evolutionary system.
 
     Genomes represent the heritable traits of an agent that can be
     mutated, crossed over, and selected upon.
@@ -28,10 +29,12 @@ class Genome:
     parent_ids: List[str] = field(default_factory=list)
 
     @property
+    @abstractmethod
     def genome_id(self) -> str:
         """Unique identifier for this genome instance."""
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def mutate(self, mutation_rate: float = 0.05) -> "Genome":
         """
         Apply mutations to create a new genome variant.
@@ -42,8 +45,9 @@ class Genome:
         Returns:
             New mutated genome instance
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def crossover(self, other: "Genome") -> "Genome":
         """
         Perform crossover with another genome to create offspring.
@@ -54,16 +58,18 @@ class Genome:
         Returns:
             New child genome
         """
-        raise NotImplementedError
+        pass
 
+    @abstractmethod
     def to_dict(self) -> Dict[str, Any]:
         """Serialize genome to dictionary."""
-        raise NotImplementedError
+        pass
 
     @classmethod
+    @abstractmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Genome":
         """Deserialize genome from dictionary."""
-        raise NotImplementedError
+        pass
 
     @property
     def current_fitness(self) -> float:
@@ -144,8 +150,7 @@ class ReasoningGenome(Genome):
     verification_depth: int = 1  # Number of self-correction loops
 
     # Grounding configuration
-    grounding_weight: float = 1.0  # Overall weight for grounding in fitness
-    grounding_weights: Dict[str, float] = field(default_factory=lambda: {"synthetic": 0.4, "realworld": 0.3, "experiential": 0.3})  # Detailed weights
+    grounding_weights: Dict[str, float] = field(default_factory=lambda: {"synthetic": 0.4, "realworld": 0.3, "experiential": 0.3})  # Weight for sensor alignment in fitness
     hallucination_threshold: float = 0.5  # Below this, flag as hallucination
     sensor_trust_level: float = 0.8  # How much to trust sensor data vs model
 
@@ -173,7 +178,7 @@ class ReasoningGenome(Genome):
     def genome_id(self) -> str:
         """Unique identifier combining model ID and generation."""
         if self._genome_hash is None:
-            config_str = json.dumps(self.to_dict(include_id=False), sort_keys=True)
+            config_str = json.dumps(self.to_dict(), sort_keys=True)
             self._genome_hash = hashlib.sha256(config_str.encode()).hexdigest()[:16]
         return f"{self.base_model_id}_gen{self.generation_id}_{self._genome_hash}"
 
@@ -364,10 +369,11 @@ class ReasoningGenome(Genome):
             tags=list(set(self.tags + other.tags)),
         )
 
-    def to_dict(self, include_id: bool = True) -> Dict[str, Any]:
+    def to_dict(self) -> Dict[str, Any]:
         """Serialize genome to dictionary for LTM persistence."""
-        data = {
+        return {
             "genome_type": "ReasoningGenome",
+            "genome_id": self.genome_id,
             "base_model_id": self.base_model_id,
             "hyperparameters": self.hyperparameters,
             "reasoning_budget": self.reasoning_budget,
@@ -385,9 +391,6 @@ class ReasoningGenome(Genome):
             "current_fitness": self.current_fitness,
             "best_fitness": self.best_fitness,
         }
-        if include_id:
-            data["genome_id"] = self.genome_id
-        return data
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "ReasoningGenome":

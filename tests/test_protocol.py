@@ -15,7 +15,7 @@ import struct
 import zlib
 from datetime import datetime
 
-from sense_v2.protocol import (
+from sense.protocol import (
     # Constants
     MAGIC_SIGNATURE,
     MAGIC_SIGNATURE_INT,
@@ -347,7 +347,7 @@ class TestSerializers:
     @pytest.mark.skipif(not MSGPACK_AVAILABLE, reason="msgpack not installed")
     def test_msgpack_serializer_roundtrip(self):
         """Test MessagePack serialization roundtrip."""
-        from sense_v2.protocol import MessagePackSerializer
+        from sense.protocol import MessagePackSerializer
 
         serializer = MessagePackSerializer()
         data = {"key": "value", "bytes": b'\x00\x01', "nested": {"a": 1}}

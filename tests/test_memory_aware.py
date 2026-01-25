@@ -15,23 +15,23 @@ from typing import Dict, Any
 from unittest.mock import Mock, patch, MagicMock
 
 # Import components
-from sense_v2.core.config import (
+from sense.core.config import (
     Config,
     MemoryAwareConfig,
     EngramConfig,
 )
-from sense_v2.llm.kernels import get_backend, get_backend_info
-from sense_v2.models.components.hashing import (
+from sense.llm.kernels import get_backend, get_backend_info
+from sense.models.components.hashing import (
     MultiHeadHash,
     NGramExtractor,
     compute_ngram_hashes,
 )
-from sense_v2.memory.hierarchy import (
+from sense.memory.hierarchy import (
     EmbeddingPrefetcher,
     MemoryHierarchy,
     PinnedMemoryPool,
 )
-from sense_v2.agents.agent_0.trainer import (
+from sense.agents.agent_0.trainer import (
     get_memory_usage,
     compute_memory_aware_fitness,
     MemoryAwareRewardComponents,
@@ -343,7 +343,7 @@ class TestDriftAndSqueeze:
     @pytest.mark.asyncio
     async def test_resource_check_recommendations(self):
         """MasterAgent should provide resource recommendations."""
-        from sense_v2.agents.agent_zero.master import MasterAgent
+        from sense.agents.agent_zero.master import MasterAgent
 
         agent = MasterAgent()
 
@@ -372,8 +372,8 @@ class TestIntegration:
 
     def test_engram_fusion_with_proper_hashing(self):
         """EngramFusionLayer should use proper N-gram hashing."""
-        from sense_v2.engram.model import EngramFusionLayer
-        from sense_v2.core.config import EngramConfig
+        from sense.engram.model import EngramFusionLayer
+        from sense.core.config import EngramConfig
         import tempfile
         import os
 
@@ -432,7 +432,7 @@ class TestMemoryProfileTool:
     @pytest.mark.asyncio
     async def test_memory_profile_tool_execution(self):
         """MemoryProfileTool should execute successfully."""
-        from sense_v2.tools.memory_tools import MemoryProfileTool
+        from sense.tools.memory_tools import MemoryProfileTool
 
         tool = MemoryProfileTool()
         result = await tool.execute(include_gpu=True, include_recommendations=True)
@@ -443,7 +443,7 @@ class TestMemoryProfileTool:
     @pytest.mark.asyncio
     async def test_memory_profile_recommendations(self):
         """MemoryProfileTool should provide recommendations."""
-        from sense_v2.tools.memory_tools import MemoryProfileTool
+        from sense.tools.memory_tools import MemoryProfileTool
 
         tool = MemoryProfileTool()
         result = await tool.execute(include_recommendations=True)

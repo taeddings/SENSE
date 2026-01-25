@@ -7,8 +7,8 @@ import pytest
 import asyncio
 import numpy as np
 
-from sense_v2.tools.anomaly import AnomalyDetectionTool
-from sense_v2.core.schemas import ToolResultStatus
+from sense.tools.anomaly import AnomalyDetectionTool
+from sense.core.schemas import ToolResultStatus
 
 
 class TestAnomalyZscoreDetection:

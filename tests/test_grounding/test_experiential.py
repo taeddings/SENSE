@@ -1,6 +1,6 @@
 import pytest
 import os
-from sense_v2.grounding.experiential import ExperientialGrounding, GroundingResult
+from sense.grounding.experiential import ExperientialGrounding, GroundingResult
 
 class TestExperientialGrounding:
     

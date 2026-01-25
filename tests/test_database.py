@@ -1,7 +1,7 @@
 import sqlite3
 import unittest
 import os
-from sense_v2.database.database import initialize_database, get_db_connection
+from sense.database.database import initialize_database, get_db_connection
 
 class TestDatabase(unittest.TestCase):
 

@@ -8,13 +8,13 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any, List
 
-from sense_v2.tools.memory_tools import (
+from sense.tools.memory_tools import (
     MemoryStoreTool,
     MemorySearchTool,
     MemoryRetrieveTool,
     MemoryStatsTool,
 )
-from sense_v2.core.schemas import ToolResultStatus
+from sense.core.schemas import ToolResultStatus
 
 
 class MockMemorySystem:

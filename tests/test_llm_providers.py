@@ -7,7 +7,7 @@ import pytest
 import asyncio
 from typing import List, Dict, Any, Optional
 
-from sense_v2.llm.base import (
+from sense.llm.base import (
     BaseLLMProvider,
     LLMConfig,
     LLMMessage,
@@ -15,7 +15,7 @@ from sense_v2.llm.base import (
     LLMRole,
     ToolCall,
 )
-from sense_v2.llm.providers import MockProvider, OpenAIProvider, VLLMProvider
+from sense.llm.providers import MockProvider, OpenAIProvider, VLLMProvider
 
 
 class TestLLMMessage:

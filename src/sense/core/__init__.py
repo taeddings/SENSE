@@ -1,46 +1,19 @@
 """
-SENSE v2.3 Core Module
-
-Contains the ReasoningOrchestrator and supporting components for the Reflexion loop.
+SENSE-v2 Core Module
+Contains configuration, base classes, and schema definitions.
 """
 
-from .reasoning_orchestrator import (
-    ReasoningOrchestrator,
-    UnifiedGrounding,
-    TaskResult,
-    VerificationResult,
-    Phase,
-    create_orchestrator,
-)
-
-from .plugins import (
-    ToolForge,
-    CodePattern,
-    CandidateSkill,
-    ProposedPlugin,
-    ForgeStatus,
-    create_tool_forge,
-)
-from .memory.ltm import AgeMem
-from ..bridge import Bridge
+from sense.core.config import Config, HardwareConfig
+from sense.core.base import BaseAgent, BaseTool, BaseMemory
+from sense.core.schemas import ToolSchema, ToolResult, AgentMessage
 
 __all__ = [
-    # Orchestrator
-    "ReasoningOrchestrator",
-    "UnifiedGrounding",
-    "TaskResult",
-    "VerificationResult",
-    "Phase",
-    "create_orchestrator",
-    # ToolForge
-    "ToolForge",
-    "CodePattern",
-    "CandidateSkill",
-    "ProposedPlugin",
-    "ForgeStatus",
-    "create_tool_forge",
-    # Memory
-    "AgeMem",
-    # Bridge
-    "Bridge",
+    "Config",
+    "HardwareConfig",
+    "BaseAgent",
+    "BaseTool",
+    "BaseMemory",
+    "ToolSchema",
+    "ToolResult",
+    "AgentMessage",
 ]

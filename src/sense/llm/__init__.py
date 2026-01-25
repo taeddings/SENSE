@@ -1,5 +1,26 @@
-"""SENSE LLM Module - Model backend abstraction layer."""
+"""
+SENSE-v2 LLM Provider Module
+Unified interface for LLM backends (vLLM, OpenAI, Anthropic).
+"""
 
-from .model_backend import ModelBackend, get_model
+from sense.llm.base import (
+    BaseLLMProvider,
+    LLMResponse,
+    LLMConfig,
+    ToolCall,
+)
+from sense.llm.providers import (
+    OpenAIProvider,
+    VLLMProvider,
+    MockProvider,
+)
 
-__all__ = ['ModelBackend', 'get_model']
+__all__ = [
+    "BaseLLMProvider",
+    "LLMResponse",
+    "LLMConfig",
+    "ToolCall",
+    "OpenAIProvider",
+    "VLLMProvider",
+    "MockProvider",
+]

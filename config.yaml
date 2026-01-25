@@ -1,0 +1,23 @@
+# SENSE Universal Config
+system_profile: "mobile_termux" # Options: mobile_termux, server_standard, desktop_dev
+
+# --- LLM SWITCHBOARD ---
+active_llm_profile: "termux_local"
+
+llm_profiles:
+  termux_local:
+    provider: "openai_compatible"
+    base_url: "http://127.0.0.1:8080/v1"
+    api_key: "sk-no-key-required"
+    model_name: "lfm2.5-1.2b-thinking"
+    timeout: 120
+
+  desktop_local:
+    provider: "openai_compatible"
+    base_url: "http://192.168.1.5:1234/v1"
+    model_name: "llama-3-70b"
+
+  openai_cloud:
+    provider: "openai"
+    api_key: "${OPENAI_API_KEY}"
+    model_name: "gpt-4o"

@@ -15,14 +15,14 @@ import os
 from typing import Tuple
 
 # Import kernel module
-from sense_v2.llm.kernels import (
+from sense.llm.kernels import (
     get_backend,
     get_backend_info,
     supports_fused_kernels,
     get_memory_savings_estimate,
     TRITON_AVAILABLE,
 )
-from sense_v2.llm.kernels.functional import (
+from sense.llm.kernels.functional import (
     fused_linear_cross_entropy,
     FusedLinearCrossEntropy,
     FusedLinearCrossEntropyLoss,
@@ -401,7 +401,7 @@ class TestIntegration:
 
     def test_import_from_package(self):
         """Should be importable from package."""
-        from sense_v2.llm.kernels import (
+        from sense.llm.kernels import (
             fused_linear_cross_entropy,
             get_backend,
         )
@@ -411,7 +411,7 @@ class TestIntegration:
 
     def test_config_integration(self):
         """Should work with MemoryAwareConfig."""
-        from sense_v2.core.config import MemoryAwareConfig
+        from sense.core.config import MemoryAwareConfig
 
         config = MemoryAwareConfig()
 

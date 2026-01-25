@@ -1,260 +1,65 @@
-# SENSE v3.0 Implementation Progress
+# SENSE v3.1 Implementation Progress
 
 ## Project Overview
-SENSE v3.0 is a model-agnostic intelligence amplification wrapper that transforms any LLM/SLM into a self-evolving, agentic system with persistent memory, multi-tier grounding, safe OS interactions, and full deployment options.
+SENSE v3.1 is a **Universal AI Architecture** designed to run anywhere—from high-end servers to mobile devices (Termux)—without code changes. It unifies the codebase, bridges heavy dependencies, and adapts its reasoning engine to the capabilities of the underlying model.
 
 **Core Philosophy:** Intelligence through architecture, not scale.
 
-## Current Status: Phase 3 Complete (Production-Ready)
+## Current Status: v3.1 Universal Architecture (Production-Ready)
 
-### What's New in v3.0
-1. **ReasoningOrchestrator** with Reflexion Loop (Architect/Worker/Critic)
-2. **ToolForge** for dynamic tool crystallization
-3. **Three-Tier Grounding** (Synthetic + Real-World + Experiential)
-4. **Personas** for phased execution control
-5. **Curriculum Agent** for adaptive task generation
-6. **GRPO Trainer** for evolutionary optimization
-7. **AgeMem** procedural RAG with FAISS embedding
-8. **Bridge** safe OS interactions with EmergencyStop
-9. **ModelBackend** multi-provider LLM support (OpenAI, Anthropic, Ollama, etc.)
-10. **Dashboard** Streamlit UI for visualization
-11. **API Server** FastAPI endpoints for integration
-12. **Docker Deployment** with GPU support
+### What's New in v3.1
+1.  **Unified Codebase:** Single `src/sense` package replacing split V1/V2/Core structure.
+2.  **Universal Memory Bridge:** Smart fallback from heavy FAISS to lightweight Engrams.
+3.  **Vision Bridge (Optic Nerve):** Lazy-loading for vision libraries to save RAM.
+4.  **Harvested Tools:** Integration of Agent Zero instruments via a robust **Universal Adapter**.
+5.  **LLM Switchboard:** Hot-swappable profiles for Local/Desktop/Cloud models.
+6.  **Adaptive Reasoning:** Smart Router and Polyglot Regex to support small "Thinking" models (1.2B).
 
 ---
 
-## ✅ Phase 1: Foundation (COMPLETED)
+## ✅ Phase 3.1: Universal Consolidation (COMPLETED)
 
-### Sprint 1: The Core
-- **ReasoningGenome** (`core/evolution/genome.py`)
-  - Genome base class with mutation, crossover, serialization
-  - Drift-adaptive mutation, FAISS embedding, backward transfer
-  - `grounding_weights` dict for three-tier weighting
+### Architecture Unification
+- **Merged** `src/sense_v2` and root `./core` into `src/sense`.
+- **Archived** legacy code to `_archive`.
+- **Refactored** imports to point to the new unified package.
 
-- **PluginABC** (`core/plugins/interface.py`)
-  - Abstract interface for hardware/sensor plugins
-  - PluginManifest, SensorReading, SafetyConstraint dataclasses
-  - Ground truth verification, emergency stop
+### Subsystem Bridges
+- **Memory:** Created `UniversalMemory` that attempts to load Agent Zero's context engine but gracefully falls back to SENSE's native Engram system if dependencies (like FAISS on Termux) are missing.
+- **Vision:** Created `VisionInterface` that loads `torch`/`transformers` only when a vision task is explicitly requested and enabled.
 
-- **PopulationManager** (`core/evolution/population.py`)
-  - DEAP integration for tournament selection
-  - Elite preservation (top 10%), diversity metrics
-  - LTM checkpointing via AgeMem
+### Tool Harvesting & Adaptation
+- **Transplanted** `yt_download` and other instruments from Agent Zero.
+- **Created `AgentZeroToolAdapter`:**
+    - **Isolation:** Runs tools via CLI subprocess to prevent crashes.
+    - **Filtering:** Strips progress bars and noise from output.
+    - **Polyglot Parsing:** Detects both standard ReAct (`Action: ...`) and function-style (`[tool()]`) calls.
 
-### Sprint 2: The Brain
-- **AdaptiveReasoningBudget** (`sense_v2/llm/reasoning/compute_allocation.py`)
-  - VRAM monitoring, reasoning modes
-  - Context Engineering: `estimate_complexity()`, `calculate_retrieval_depth()`
-  - Compensatory reasoning for offline sensors
-
-- **ReasoningTrace Schema** (`sense_v2/memory/engram_schemas.py`)
-  - Complete reasoning process capture
-  - Drift snapshots, grounding records
-
-### Sprint 3: The Loop
-- **DEAP Integration** for evolution
-- **GRPOTrainer** with backward transfer
-- **CurriculumAgent** with difficulty scaling
-- **RestrictedPython** sandbox
+### Reasoning Engine 2.0
+- **Smart Router:** Classifies tasks as `TOOL` vs `CHAT` to switch system prompts.
+- **Heuristic Backup:** Forces tool usage for keywords (`download`, `search`) if the model is ambiguous.
+- **Thinking Model Support:** Increased router token limits to accommodate chain-of-thought models.
 
 ---
 
-## ✅ Phase 2: Reasoning & Agency (CURRENT - Core Complete)
-
-### ReasoningOrchestrator (`sense/core/reasoning_orchestrator.py`)
-**Status:** COMPLETE
-
-Implements the Reflexion Loop:
-1. **Architect Phase**: Task analysis, plan creation
-2. **Worker Phase**: Plan execution with tool registry
-3. **Critic Phase**: Verification via three-tier grounding
-4. **Integration Phase**: Tool crystallization check
-
-Features:
-- `solve_task()` async method
-- Retry loop with feedback refinement (max 3)
-- UnifiedGrounding with configurable tier weights
-- Execution statistics tracking
-
-### ToolForge (`sense/core/plugins/forge.py`)
-**Status:** COMPLETE
-
-Dynamic tool creation pipeline:
-1. **DETECT**: `scan_memory()` finds repeated patterns (threshold: 3)
-2. **ABSTRACT**: `forge_tool()` parameterizes code
-3. **VERIFY**: `verify_tool()` runs Tier 1 synthetic tests
-4. **PERSIST**: `install_tool()` saves to plugins/user_defined/
-5. **REGISTER**: Hot-loads into ToolRegistry
-
-Components:
-- PatternMatcher (Jaccard similarity, normalization)
-- CodeAbstractor (literal extraction, parameterization)
-- SyntheticVerifier (syntax + execution testing)
-- PluginGenerator (PluginABC code generation)
-
-### Personas (`sense/interface/personas/`)
-**Status:** COMPLETE
-
-- `architect.md`: Planning & task decomposition
-- `worker.md`: Execution & tool usage
-- `critic.md`: Verification & feedback generation
-
----
-
-## Directory Structure
-
-```
-SENSE/
-├── SENSE/
-│   ├── sense/                          # v2.3 modules
-│   │   ├── __init__.py                 # Package exports
-│   │   ├── core/
-│   │   │   ├── __init__.py
-│   │   │   ├── reasoning_orchestrator.py  # Reflexion loop
-│   │   │   └── plugins/
-│   │   │       ├── __init__.py
-│   │   │       └── forge.py               # ToolForge
-│   │   ├── interface/
-│   │   │   ├── __init__.py
-│   │   │   └── personas/
-│   │   │       ├── architect.md
-│   │   │       ├── critic.md
-│   │   │       └── worker.md
-│   │   └── plugins/
-│   │       ├── __init__.py
-│   │       └── user_defined/              # Forged tools
-│   │           └── __init__.py
-│   ├── sense_v2/                       # Previous implementation
-│   ├── core/
-│   │   ├── evolution/                  # Genome, Population
-│   │   ├── grounding/                  # Tier 1/2/3
-│   │   └── plugins/                    # PluginABC
-│   └── tests/
-```
-
----
-
-## Key Integrations
-
-### ReasoningOrchestrator ↔ ToolForge
-```python
-# In solve_task(), after successful completion:
-if result.success:
-    self.tool_forge.check_for_crystallization(result)
-```
-
-### Three-Tier Grounding Weights
-```python
-weights = {
-    "synthetic": 0.4,    # Deterministic (math, code)
-    "realworld": 0.3,    # External (web, APIs)
-    "experiential": 0.3  # Action outcomes
-}
-```
-
----
-
-## Dependencies
-
-**Required:**
-```bash
-pip install deap RestrictedPython psutil numpy pyyaml
-```
-
-**Optional:**
-```bash
-pip install faiss-cpu sentence-transformers requests beautifulsoup4
-```
-
----
-
-## Next Steps
-
-1. **Connect to Model Backend**
-   - Replace stub prompting with actual LLM calls
-   - Integrate with model config (LM Studio, Ollama, etc.)
-
-2. **Connect Real Grounding**
-   - Link existing `core/grounding/tier1.py`, `tier2.py`, `tier3.py`
-   - Replace stub implementations in UnifiedGrounding
-
-3. **Integration Testing**
-   - Full Orchestrator → ToolForge flow
-   - Test with AgeMem memory system
-
----
-
-## Usage Examples
-
-### ReasoningOrchestrator
-```python
-import asyncio
-from sense.core import ReasoningOrchestrator
-
-async def main():
-    orch = ReasoningOrchestrator()
-    result = await orch.solve_task("Calculate 17 * 23")
-
-    print(f"Success: {result.success}")
-    print(f"Phases: {[p.value for p in result.phases_completed]}")
-    print(f"Confidence: {result.verification.confidence:.2f}")
-
-asyncio.run(main())
-```
-
-### ToolForge
-```python
-from sense.core import ToolForge
-
-forge = ToolForge()
-
-# Scan for patterns
-candidates = forge.scan_memory(memory_source, min_occurrences=3)
-
-# Forge and verify
-for candidate in candidates:
-    plugin = forge.forge_tool(candidate)
-    if forge.verify_tool(plugin):
-        path = forge.install_tool(plugin)
-        print(f"Installed: {path}")
-```
+## ✅ Phase 1 & 2: Foundation & Reasoning (COMPLETED)
+*See legacy logs for details on Genome, PluginABC, ToolForge, and Reflexion Loop.*
 
 ---
 
 ## Session Log
 
-**2026-01-24:** Import & Dependency Restructuring
-- Fixed missing `__init__.py` files in `sense/llm/`, `sense/core/memory/`, `sense/core/grounding/`
-- Added missing `import os` to `model_backend.py`
-- Added missing `import numpy as np` to `ltm.py`
-- Fixed `MockSensor` → `MockSensorPlugin` in `tier1.py`
-- Fixed broken 4-level relative import in `reasoning_orchestrator.py`
-- Rewrote corrupted grounding tier files with proper formatting
-- Implemented singleton pattern per DIRECTIVE_ORCHESTRATOR.md
-- Created comprehensive test file `tests/test_orchestrator_init.py`
-- **Credit:** Todd Eddings for direction and architecture
+**2026-01-24 (Evening):** Universal Architecture & Harvesting
+- **Consolidation:** Merged `sense_v2` and root `core` into `src/sense`.
+- **Bridge Implementation:** Built `UniversalMemory` and `VisionInterface` for safe mobile execution.
+- **Tool Adapter:** Implemented `AgentZeroToolAdapter` with CLI isolation and regex-based output cleaning.
+- **Orchestrator Upgrade:** Implemented Smart Router, Polyglot Parser, and Thinking Model support.
+- **Diagnostics:** Verified all systems via `SENSE UNIVERSAL DIAGNOSTIC`.
+- **Status:** **ALL SYSTEMS OPERATIONAL** on Termux.
 
-**2026-01-23:** Phase 2 Core Complete
-- Implemented ReasoningOrchestrator with Reflexion loop
-- Implemented ToolForge with full pipeline
-- Created personas (architect, worker, critic)
-- Updated CLAUDE.md, RATIONALE.md to v2.3
-- Updated IMPLEMENTATION_STATE.md with progress
+**2026-01-24 (Morning):** Import & Dependency Restructuring
+- Fixed missing `__init__.py` files.
+- Rewrote corrupted grounding tier files.
+- Implemented singleton pattern.
 
-**2026-01-24:** Phase 3 Production Complete
-- Added Curriculum Agent, GRPO Trainer, AgeMem RAG
-- Implemented Bridge for safe OS interactions
-- Added ModelBackend for multi-LLM support
-- Created Dashboard (Streamlit), API (FastAPI)
-- Dockerized with GPU support
-- Comprehensive testing and documentation
-
-**2026-01-21:** Context Engineering Integration
-- Added estimate_complexity(), calculate_retrieval_depth()
-- Integrated with AgeMem adaptive retrieval
-- Added ContextEngineeringConfig to config.py
-
-**2026-01-19:** Three-Tier Grounding System
-- Implemented tier1.py, tier2.py, tier3.py
-- Added grounding_runner.py integration
-- Updated dashboard with monitoring panel
+*(Older logs preserved in archive)*

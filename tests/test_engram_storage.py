@@ -2,7 +2,7 @@ import pytest
 import os
 import numpy as np
 import torch
-from sense_v2.engram.storage import MMapEmbeddingStorage # Uncommented this line
+from sense.engram.storage import MMapEmbeddingStorage # Uncommented this line
 
 # Removed dummy MMapEmbeddingStorage class definition
 

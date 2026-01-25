@@ -1,7 +1,7 @@
 import pytest
 from dataclasses import is_dataclass, field
 from typing import List
-from sense_v2.core.config import (
+from sense.core.config import (
     Config, HardwareConfig, EvolutionConfig, OrchestrationConfig,
     MemoryConfig, EngramConfig, ReasoningConfig, GroundingConfig
 )

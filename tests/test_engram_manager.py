@@ -12,7 +12,7 @@ import mmap
 import asyncio
 from pathlib import Path
 
-from sense_v2.engram.manager import (
+from sense.engram.manager import (
     EngramManager,
     AsyncEngramManager,
     MultiBufferManager,
@@ -22,7 +22,7 @@ from sense_v2.engram.manager import (
     create_buffer_file,
     verify_buffer_integrity,
 )
-from sense_v2.protocol.parser import BinaryParser
+from sense.protocol.parser import BinaryParser
 
 
 @pytest.fixture

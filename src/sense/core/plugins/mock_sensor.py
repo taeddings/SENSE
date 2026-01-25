@@ -15,11 +15,12 @@ from typing import Any, Dict, Optional, Union, AsyncIterator
 from datetime import datetime
 from dataclasses import dataclass, field
 
-from .interface import (
+from sense.core.plugins.interface import (
     PluginABC,
     PluginCapability,
     PluginManifest,
     SensorReading,
+    SafetyConstraint,
 )
 
 

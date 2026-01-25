@@ -1,8 +1,8 @@
 import unittest
 import json
 import os
-from sense_v2.api.app import create_app
-from sense_v2.models.user import User
+from sense.api.app import create_app
+from sense.models.user import User
 
 class TestApi(unittest.TestCase):
 

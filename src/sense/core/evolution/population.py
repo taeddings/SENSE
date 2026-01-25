@@ -23,7 +23,7 @@ from datetime import datetime
 import json
 import numpy as np
 
-from .genome import ReasoningGenome, Genome, create_random_genome
+from core.evolution.genome import ReasoningGenome, Genome, create_random_genome
 from sense_v2.core.config import EvolutionConfig
 
 # Optional DEAP import (for Sprint 3.1)
@@ -191,7 +191,6 @@ class PopulationManager:
             "select",
             tools.selTournament,
             tournsize=3,
-            fit_attr="current_fitness",
         )
 
         # Register crossover operator using genome crossover
@@ -291,12 +290,12 @@ class PopulationManager:
             # Select parents
             if DEAP_AVAILABLE and self._toolbox:
                 # Use tournament selection via DEAP
-                parents = self._toolbox.select(
-                    self.population,
+                parent_indices = self._toolbox.select(
+                    list(range(len(self.population))),
                     k=2,
                 )
-                parent_a = parents[0]
-                parent_b = parents[1]
+                parent_a = self.population[parent_indices[0]]
+                parent_b = self.population[parent_indices[1]]
 
                 # Use DEAP variation operators
                 offspring = [parent_a, parent_b]
@@ -493,7 +492,7 @@ class PopulationManager:
 
         # KL divergence (capped)
         kl = np.sum(curr_norm * np.log(curr_norm / (prev_norm + 1e-10) + 1e-10))
-        drift = max(0.0, min(1.0, kl / 2.0))  # Normalize to 0-1 and clamp
+        drift = min(1.0, kl / 2.0)  # Normalize to 0-1
 
         return float(drift)
 

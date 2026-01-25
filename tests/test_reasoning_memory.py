@@ -2,10 +2,10 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime
-from sense_v2.memory.agemem_integration import ReasoningMemoryManager, ReasoningMemoryConfig
-from sense_v2.memory.engram_schemas import ReasoningTrace, DriftSnapshot
-from sense_v2.memory.agemem import AgeMem, MemoryType
-from sense_v2.core.config import MemoryConfig
+from sense.memory.agemem_integration import ReasoningMemoryManager, ReasoningMemoryConfig
+from sense.memory.engram_schemas import ReasoningTrace, DriftSnapshot
+from sense.memory.agemem import AgeMem, MemoryType
+from sense.core.config import MemoryConfig
 
 
 @pytest.fixture

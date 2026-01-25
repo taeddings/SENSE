@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
-from sense_v2.core.reasoning_orchestrator import (
+from sense.core.reasoning_orchestrator import (
     ReasoningOrchestrator, ReasoningContext, ReasoningResult
 )
 

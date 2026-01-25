@@ -1,7 +1,7 @@
 import unittest
 import os
-from sense_v2.models.user import User
-from sense_v2.database.database import initialize_database
+from sense.models.user import User
+from sense.database.database import initialize_database
 
 class TestUserModel(unittest.TestCase):
 

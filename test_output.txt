@@ -1,0 +1,9 @@
+Testing imports...
+1. ReasoningOrchestrator: OK
+2. Singleton pattern: OK
+3. Personas loaded: OK
+4. UnifiedGrounding: OK
+5. Phase enum: OK
+6. sense_v2 imports: OK
+
+ALL TESTS PASSED!

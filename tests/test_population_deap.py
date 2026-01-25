@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from sense.core.evolution.population import PopulationManager, GenerationStats
-from sense_v2.core.config import EvolutionConfig
+from sense.core.config import EvolutionConfig
 from sense.core.evolution.genome import ReasoningGenome, create_random_genome
 
 

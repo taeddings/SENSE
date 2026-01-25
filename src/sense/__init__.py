@@ -1,46 +1,119 @@
 """
-SENSE v2.3 - Self-Evolving Neural System Engine
+SENSE-v2: Systematic Enhancement for Neural Selection and Evolution
+A self-evolving, agent-driven framework merging neural evolution with autonomous operational control.
 
-A model-agnostic intelligence amplification wrapper that transforms any LLM/SLM
-into a self-evolving, grounded, agentic system with persistent memory.
+Core Components:
+- Agent 0 (The School): Co-evolutionary loop using Step-wise GRPO
+- Agent Zero (The Workplace): Hierarchical orchestration for OS-level tasks
+- AgeMem (The Filing Cabinet): Structured agentic memory system (LTM/STM)
 
-Core Philosophy: Intelligence through architecture, not scale.
+Architecture:
+- Optimized for 128GB Unified Memory Architecture (UMA) with 256-bit bus
+- vLLM with ROCm (AMD RDNA 3.5) support
+- Tool-centric logic with schema-based Python tools
+- Self-correction loops via stderr parsing
 """
 
-from .core import (
-    # Orchestrator
-    ReasoningOrchestrator,
-    UnifiedGrounding,
-    TaskResult,
-    VerificationResult,
-    Phase,
-    create_orchestrator,
-    # ToolForge
-    ToolForge,
-    CodePattern,
-    CandidateSkill,
-    ProposedPlugin,
-    ForgeStatus,
-    create_tool_forge,
+__version__ = "2.0.0"
+__author__ = "Todd Eddings"
+
+# Core
+from sense.core.config import Config, HardwareConfig, EvolutionConfig, OrchestrationConfig, MemoryConfig, ProtocolConfig
+from sense.core.base import BaseAgent, BaseTool, BaseMemory, ToolRegistry, AgentState
+from sense.core.schemas import ToolSchema, ToolResult, AgentMessage, RewardSignal
+
+# Memory System (AgeMem)
+from sense.memory.agemem import AgeMem, create_agemem
+
+# Agents - Agent 0 (The School)
+from sense.agents.agent_0.curriculum import CurriculumAgent, CurriculumTask
+from sense.agents.agent_0.executor import ExecutorAgent
+from sense.agents.agent_0.trainer import GRPOTrainer
+
+# Agents - Agent Zero (The Workplace)
+from sense.agents.agent_zero.master import MasterAgent
+from sense.agents.agent_zero.sub_agents import TerminalAgent, FileSystemAgent, BrowserAgent
+
+# Tools
+from sense.tools.terminal import TerminalTool
+from sense.tools.filesystem import FileReadTool, FileWriteTool, FileListTool
+from sense.tools.memory_tools import MemoryStoreTool, MemorySearchTool
+from sense.tools.anomaly import AnomalyDetectionTool
+
+# Utilities
+from sense.utils.dev_log import DevLog, StateLogger
+from sense.utils.health import HealthMonitor, SystemHealth, get_health_monitor
+
+# Protocol
+from sense.protocol import (
+    SENSEMessage,
+    DRGNHeader,
+    BinaryParser,
+    AgentMessageAdapter,
+    AsyncMessageReader,
+    AsyncMessageWriter,
+    AsyncMessageChannel,
 )
 
-__version__ = "2.3.0"
+# Engram Manager
+from sense.engram.manager import EngramManager, AsyncEngramManager
 
 __all__ = [
-    # Orchestrator
-    "ReasoningOrchestrator",
-    "UnifiedGrounding",
-    "TaskResult",
-    "VerificationResult",
-    "Phase",
-    "create_orchestrator",
-    # ToolForge
-    "ToolForge",
-    "CodePattern",
-    "CandidateSkill",
-    "ProposedPlugin",
-    "ForgeStatus",
-    "create_tool_forge",
-    # Version
+    # Version info
     "__version__",
+    "__author__",
+    # Core
+    "Config",
+    "HardwareConfig",
+    "EvolutionConfig",
+    "OrchestrationConfig",
+    "MemoryConfig",
+    "ProtocolConfig",
+    "BaseAgent",
+    "BaseTool",
+    "BaseMemory",
+    "ToolRegistry",
+    "AgentState",
+    "ToolSchema",
+    "ToolResult",
+    "AgentMessage",
+    "RewardSignal",
+    # Memory
+    "AgeMem",
+    "create_agemem",
+    # Agent 0
+    "CurriculumAgent",
+    "CurriculumTask",
+    "ExecutorAgent",
+    "GRPOTrainer",
+    # Agent Zero
+    "MasterAgent",
+    "TerminalAgent",
+    "FileSystemAgent",
+    "BrowserAgent",
+    # Tools
+    "TerminalTool",
+    "FileReadTool",
+    "FileWriteTool",
+    "FileListTool",
+    "MemoryStoreTool",
+    "MemorySearchTool",
+    "AnomalyDetectionTool",
+    # Utilities
+    "DevLog",
+    "StateLogger",
+    "HealthMonitor",
+    "SystemHealth",
+    "get_health_monitor",
+    # Protocol
+    "SENSEMessage",
+    "DRGNHeader",
+    "BinaryParser",
+    "AgentMessageAdapter",
+    "AsyncMessageReader",
+    "AsyncMessageWriter",
+    "AsyncMessageChannel",
+    # Engram Manager
+    "EngramManager",
+    "AsyncEngramManager",
 ]

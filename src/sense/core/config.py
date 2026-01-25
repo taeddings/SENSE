@@ -1,0 +1,471 @@
+"""
+SENSE-v2 Configuration Module
+Defines system-wide configuration optimized for 128GB UMA and AMD ROCm.
+"""
+
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, List
+from enum import Enum
+import os
+import json
+
+
+class HardwareBackend(Enum):
+    """Supported hardware backends."""
+    ROCM = "rocm"          # AMD RDNA 3.5
+    CPU = "cpu"            # Fallback CPU
+    AUTO = "auto"          # Auto-detect
+
+
+class MemoryTier(Enum):
+    """Memory tier classification."""
+    HOT = "hot"            # Frequently accessed, in-memory
+    WARM = "warm"          # Moderately accessed, cached
+    COLD = "cold"          # Rarely accessed, vector DB
+
+
+@dataclass
+class HardwareConfig:
+    """
+    Hardware-specific configuration optimized for 128GB UMA with 256-bit bus.
+    Prioritizes bandwidth efficiency over raw compute.
+    """
+    backend: HardwareBackend = HardwareBackend.AUTO
+    unified_memory_gb: int = 128
+    memory_bus_width: int = 256
+
+    # vLLM specific settings for ROCm
+    vllm_gpu_memory_utilization: float = 0.85
+    vllm_max_model_len: int = 32768
+    vllm_tensor_parallel_size: int = 1
+
+    # Batch sizing for bandwidth optimization
+    optimal_batch_size: int = 64
+    max_batch_size: int = 256
+
+    # Memory thresholds
+    memory_warning_threshold: float = 0.75
+    memory_critical_threshold: float = 0.90
+
+    def get_effective_vram(self) -> int:
+        """Calculate effective VRAM available for model inference."""
+        return int(self.unified_memory_gb * self.vllm_gpu_memory_utilization)
+
+    def calculate_optimal_batch(self, sequence_length: int) -> int:
+        """
+        Calculate optimal batch size based on sequence length and bus width.
+        Optimizes for bandwidth efficiency on 256-bit bus.
+        """
+        # Bytes per token (assuming fp16)
+        bytes_per_token = 2
+        # Optimal transfer size for 256-bit bus (32 bytes per transfer)
+        optimal_transfer = 32
+
+        # Calculate batch that aligns with bus width
+        tokens_per_transfer = optimal_transfer // bytes_per_token
+        ideal_batch = (sequence_length // tokens_per_transfer) * tokens_per_transfer
+
+        return max(1, min(ideal_batch, self.max_batch_size))
+
+
+@dataclass
+class EvolutionConfig:
+    """Configuration for Agent 0 (The School) evolutionary system."""
+    population_size: int = 16
+    mutation_rate: float = 0.05
+    crossover_rate: float = 0.7
+    selection_top_k: int = 4
+    diversity_weight: float = 0.1
+
+    # GRPO (Group Relative Policy Optimization) settings
+    grpo_group_size: int = 8
+    grpo_temperature: float = 1.0
+    grpo_kl_coeff: float = 0.1
+
+    # Curriculum settings
+    curriculum_stages: int = 5
+    difficulty_ramp_rate: float = 0.1
+    max_curriculum_steps: int = 1000
+
+    # Reward function settings
+    reward_binary: bool = True  # Binary vs scalar rewards
+    unit_test_weight: float = 0.6
+    exit_code_weight: float = 0.4
+
+
+@dataclass
+class OrchestrationConfig:
+    """Configuration for Agent Zero (The Workplace) orchestration layer."""
+    max_delegation_depth: int = 3
+    master_context_limit: int = 4096  # Keep master agent context lean
+    sub_agent_context_limit: int = 16384
+
+    # Delegation settings
+    task_timeout_seconds: int = 300
+    max_retries: int = 3
+    retry_backoff_base: float = 2.0
+
+    # Sub-agent types
+    enabled_sub_agents: List[str] = field(default_factory=lambda: [
+        "terminal",
+        "filesystem",
+        "browser"
+    ])
+
+
+@dataclass
+class MemoryConfig:
+    """Configuration for AgeMem (The Filing Cabinet) memory system."""
+    # Vector database settings
+    vector_db_type: str = "chromadb"
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
+    embedding_dimension: int = 384
+
+    # LTM settings
+    ltm_collection_name: str = "sense_ltm"
+    ltm_max_entries: int = 100000
+    ltm_similarity_threshold: float = 0.75
+
+    # STM settings
+    stm_max_tokens: int = 8192
+    stm_prune_threshold: float = 0.80  # Trigger prune at 80% capacity
+    stm_summary_ratio: float = 0.3     # Summarize to 30% of original
+
+    # Memory tiering
+    hot_tier_max_age_hours: int = 1
+    warm_tier_max_age_hours: int = 24
+
+    # Persistence paths
+    persistence_dir: str = field(default_factory=lambda: os.path.expanduser("~/.sense/memory"))
+
+
+@dataclass
+class EngramConfig:
+    """Configuration for the Engram Conditional Memory architecture."""
+    enabled: bool = True
+    storage_path: str = "data/engram_table.dat"
+    shadow_map_path: str = "data/shadow_map.npy"
+    table_size: int = 10_000_000
+    engram_dim: int = 1024
+    num_heads: int = 8
+    ngram_orders: List[int] = field(default_factory=lambda: [2, 3])
+    layer_indices: List[int] = field(default_factory=lambda: [2, 15])
+
+
+@dataclass
+class MemoryAwareConfig:
+    """
+    Configuration for memory-aware operations.
+
+    Controls fused kernel usage, host offloading, and resource limits
+    to optimize inference on memory-constrained systems.
+    """
+    # Resource limits
+    max_ram_usage_mb: int = 4096
+    max_vram_usage_mb: int = 8192
+
+    # Fused kernel settings
+    use_fused_kernels: bool = True
+    fused_chunk_size: int = 4096  # Vocab chunk size for chunked softmax
+    force_backend: Optional[str] = None  # Override auto-detection
+
+    # Host offloading
+    enable_host_offload: bool = True
+    prefetch_batch_size: int = 1024
+    pin_memory: bool = True  # Pin host memory for faster transfers
+
+    # Memory pressure thresholds
+    memory_warning_threshold: float = 0.60  # Activate Engram at 60% usage
+    memory_critical_threshold: float = 0.75  # Enable aggressive optimizations
+    fused_kernel_threshold: float = 0.75  # Force fused kernels above this
+
+    # Automatic activation
+    auto_activate_engram: bool = True  # Auto-enable Engram under memory pressure
+    auto_enable_fused: bool = True  # Auto-enable fused kernels under pressure
+
+    def should_activate_engram(self, memory_percent: float) -> bool:
+        """Check if Engram should be activated based on memory pressure."""
+        return self.auto_activate_engram and memory_percent >= self.memory_warning_threshold
+
+    def should_use_fused_kernels(self, memory_percent: float) -> bool:
+        """Check if fused kernels should be used based on memory pressure."""
+        if not self.use_fused_kernels:
+            return False
+        return self.auto_enable_fused and memory_percent >= self.fused_kernel_threshold
+
+
+@dataclass
+class ReasoningConfig:
+    """
+    Configuration for the adaptive reasoning system.
+
+    Controls token budgeting, verification loops, and compensatory reasoning
+    for optimal agent performance under varying conditions.
+    """
+    # Adaptive reasoning budget
+    base_reasoning_budget: int = 1024  # Base tokens for thinking steps
+    max_reasoning_budget: int = 8192   # Maximum allowed budget
+    min_reasoning_budget: int = 256    # Minimum allowed budget
+
+    # Reasoning modes
+    default_mode: str = "BALANCED"     # EFFICIENT, BALANCED, EXPLORATORY, COMPENSATORY
+    compensatory_multiplier: float = 2.0  # Budget multiplier when sensors offline
+    compensatory_verification: int = 2   # Extra verification loops when offline
+
+    # VRAM monitoring
+    vram_monitoring_enabled: bool = True
+    vram_warning_threshold: float = 0.75
+    vram_critical_threshold: float = 0.90
+
+    # Memory integration
+    memory_similarity_boost: float = 0.7  # Similarity threshold for budget reduction
+    memory_budget_reduction: float = 0.3  # Budget reduction factor for similar memories
+
+    # Verification settings
+    max_verification_loops: int = 5
+    verification_timeout_seconds: int = 60
+
+    # Drift adaptation
+    drift_high_threshold: float = 0.5
+    drift_low_threshold: float = 0.2
+    drift_budget_increase: float = 0.15  # 10-20% increase for high drift
+
+
+@dataclass
+class GroundingConfig:
+    """
+    Configuration for physical grounding system.
+
+    Controls sensor integration, hallucination detection, and ground truth
+    verification to ensure agent claims align with physical reality.
+    """
+    # Grounding verification
+    grounding_enabled: bool = True
+    grounding_score_threshold: float = 0.5  # Minimum score for valid grounding
+    hallucination_alert_threshold: float = 0.3  # Trigger alert below this
+
+    # Sensor integration
+    sensor_timeout_seconds: int = 5.0
+    sensor_retry_attempts: int = 3
+    sensor_backoff_base: float = 1.5
+
+    # Plugin management
+    max_concurrent_plugins: int = 10
+    plugin_initialization_timeout: int = 30
+    plugin_health_check_interval: int = 60
+
+    # Ground truth sources
+    trusted_sensor_types: List[str] = field(default_factory=lambda: [
+        "temperature", "humidity", "pressure", "light", "motion"
+    ])
+
+    # Quality thresholds
+    min_sensor_quality: float = 0.7
+    max_sensor_age_seconds: int = 300  # Reject readings older than 5 minutes
+
+    # Emergency responses
+    emergency_stop_on_hallucination: bool = True
+    hallucination_cooldown_seconds: int = 30
+
+    # Compensation strategies
+    offline_compensation_enabled: bool = True
+    compensation_fallback_accuracy: float = 0.5  # Assumed accuracy when sensors offline
+
+    def is_sensor_trusted(self, sensor_type: str) -> bool:
+        """Check if a sensor type is in the trusted list."""
+        return sensor_type in self.trusted_sensor_types
+
+    def should_trigger_emergency(self, hallucination_score: float) -> bool:
+        """Determine if hallucination score should trigger emergency response."""
+        return (self.emergency_stop_on_hallucination and
+                hallucination_score <= self.hallucination_alert_threshold)
+
+
+@dataclass
+class ContextEngineeringConfig:
+    """
+    Configuration for Context Engineering system.
+
+    Controls automatic complexity estimation, adaptive retrieval depth,
+    and context-aware reasoning budget allocation.
+    """
+    # Complexity estimation
+    enabled: bool = True
+
+    # Complexity scoring weights (factors from estimate_complexity)
+    entity_density_weight: float = 0.25
+    question_structure_weight: float = 0.20
+    length_weight: float = 0.20
+    multi_step_weight: float = 0.20
+    code_markers_weight: float = 0.15
+    constraint_weight: float = 0.10
+    domain_markers_weight: float = 0.15
+
+    # Adaptive retrieval depth bounds
+    min_retrieval_k: int = 1
+    base_retrieval_k: int = 3
+    max_retrieval_k: int = 10
+    use_adaptive_retrieval: bool = True
+
+    # Complexity thresholds for retrieval depth tiers
+    low_complexity_threshold: float = 0.3
+    high_complexity_threshold: float = 0.7
+
+    # Integration with reasoning budget
+    auto_estimate_for_allocation: bool = True
+    log_complexity_scores: bool = False
+
+    def get_retrieval_depth(self, complexity: float) -> int:
+        """
+        Calculate retrieval depth based on complexity score.
+
+        Args:
+            complexity: Complexity score (0.0 to 1.0)
+
+        Returns:
+            Number of items to retrieve
+        """
+        if complexity < self.low_complexity_threshold:
+            # Linear scale from min_k to base_k
+            ratio = complexity / self.low_complexity_threshold
+            return self.min_retrieval_k + int((self.base_retrieval_k - self.min_retrieval_k) * ratio)
+        elif complexity < self.high_complexity_threshold:
+            return self.base_retrieval_k
+        else:
+            # Linear scale from base_k to max_k
+            ratio = (complexity - self.high_complexity_threshold) / (1.0 - self.high_complexity_threshold)
+            return self.base_retrieval_k + int((self.max_retrieval_k - self.base_retrieval_k) * ratio)
+
+
+@dataclass
+class ProtocolConfig:
+    """
+    Configuration for DRGN binary protocol.
+
+    Controls message size limits, serialization format, and async I/O
+    settings for the SENSE protocol layer.
+    """
+    # Message size limits (DoS protection)
+    max_message_size: int = 64 * 1024 * 1024  # 64 MB
+    max_string_length: int = 16 * 1024 * 1024  # 16 MB per string
+
+    # Serialization settings
+    use_msgpack: bool = True  # False falls back to JSON
+    compress_threshold: int = 1024  # Compress payloads larger than this
+
+    # CRC32 verification
+    verify_crc32: bool = True
+
+    # Async I/O settings
+    async_buffer_size: int = 65536  # 64 KB read buffer
+    read_timeout: float = 30.0  # Seconds
+    write_timeout: float = 30.0  # Seconds
+    max_pending_messages: int = 256
+
+
+@dataclass
+class Config:
+    """
+    Master configuration for SENSE-v2 framework.
+    All inference and data-handling logic optimized for 128GB UMA.
+    """
+    hardware: HardwareConfig = field(default_factory=HardwareConfig)
+    evolution: EvolutionConfig = field(default_factory=EvolutionConfig)
+    orchestration: OrchestrationConfig = field(default_factory=OrchestrationConfig)
+    memory: MemoryConfig = field(default_factory=MemoryConfig)
+    engram: EngramConfig = field(default_factory=EngramConfig)
+    memory_aware: MemoryAwareConfig = field(default_factory=MemoryAwareConfig)
+    protocol: ProtocolConfig = field(default_factory=ProtocolConfig)
+    context_engineering: ContextEngineeringConfig = field(default_factory=ContextEngineeringConfig)
+
+    # Global settings
+    log_level: str = "INFO"
+    log_file: str = "sense.log"
+    dev_log_file: str = "dev_log.json"
+
+    # Model settings (supports openai/gpt-4, anthropic/claude-3, ollama/llama3, lmstudio/gpt-4, http://localhost:1234/v1/completions, transformers/gpt2)
+    model_name: str = "meta-llama/Llama-2-7b-hf"
+    model_dtype: str = "float16"
+
+    # Self-correction settings
+    max_self_correction_attempts: int = 5
+    stderr_parse_enabled: bool = True
+
+    @classmethod
+    def from_file(cls, path: str) -> "Config":
+        """Load configuration from JSON file."""
+        with open(path, "r") as f:
+            data = json.load(f)
+        return cls._from_dict(data)
+
+    @classmethod
+    def _from_dict(cls, data: Dict[str, Any]) -> "Config":
+        """Recursively construct Config from dictionary."""
+        hardware = HardwareConfig(**data.get("hardware", {})) if "hardware" in data else HardwareConfig()
+        evolution = EvolutionConfig(**data.get("evolution", {})) if "evolution" in data else EvolutionConfig()
+        orchestration = OrchestrationConfig(**data.get("orchestration", {})) if "orchestration" in data else OrchestrationConfig()
+        memory = MemoryConfig(**data.get("memory", {})) if "memory" in data else MemoryConfig()
+        engram = EngramConfig(**data.get("engram", {})) if "engram" in data else EngramConfig()
+        memory_aware = MemoryAwareConfig(**data.get("memory_aware", {})) if "memory_aware" in data else MemoryAwareConfig()
+        protocol = ProtocolConfig(**data.get("protocol", {})) if "protocol" in data else ProtocolConfig()
+        context_engineering = ContextEngineeringConfig(**data.get("context_engineering", {})) if "context_engineering" in data else ContextEngineeringConfig()
+
+        return cls(
+            hardware=hardware,
+            evolution=evolution,
+            orchestration=orchestration,
+            memory=memory,
+            engram=engram,
+            memory_aware=memory_aware,
+            protocol=protocol,
+            context_engineering=context_engineering,
+            log_level=data.get("log_level", "INFO"),
+            log_file=data.get("log_file", "sense.log"),
+            dev_log_file=data.get("dev_log_file", "dev_log.json"),
+            model_name=data.get("model_name", "meta-llama/Llama-2-7b-hf"),
+            model_dtype=data.get("model_dtype", "float16"),
+            max_self_correction_attempts=data.get("max_self_correction_attempts", 5),
+            stderr_parse_enabled=data.get("stderr_parse_enabled", True),
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Serialize configuration to dictionary."""
+        from dataclasses import asdict
+        return asdict(self)
+
+    def save(self, path: str) -> None:
+        """Save configuration to JSON file."""
+        # Handle enums during serialization
+        def serialize(obj):
+            if isinstance(obj, Enum):
+                return obj.value
+            return obj
+
+        data = self.to_dict()
+
+        def convert_enums(d):
+            if isinstance(d, dict):
+                return {k: convert_enums(v) for k, v in d.items()}
+            elif isinstance(d, list):
+                return [convert_enums(item) for item in d]
+            elif isinstance(d, Enum):
+                return d.value
+            return d
+
+        with open(path, "w") as f:
+            json.dump(convert_enums(data), f, indent=2)
+
+    def validate(self) -> List[str]:
+        """Validate configuration and return list of warnings/errors."""
+        issues = []
+
+        if self.hardware.unified_memory_gb < 16:
+            issues.append("WARNING: Less than 16GB unified memory may cause OOM errors")
+
+        if self.memory.stm_prune_threshold > 0.95:
+            issues.append("WARNING: STM prune threshold too high, may cause context overflow")
+
+        if self.evolution.population_size < self.evolution.selection_top_k:
+            issues.append("ERROR: population_size must be >= selection_top_k")
+
+        return issues

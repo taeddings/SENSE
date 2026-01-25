@@ -1,92 +1,68 @@
-"""SENSE v3.0 Main: Self-Evolution Loop"""
-
-import os
-import sys
+import argparse
 import asyncio
-import time
 import logging
+import sys
 
-# Handle both script and module execution
-if __name__ == "__main__" or not __package__:
-    # Running as script - add parent to path
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from sense.core.reasoning_orchestrator import ReasoningOrchestrator
-    from sense.core.evolution.curriculum import CurriculumAgent
-    from sense.core.evolution.grpo import GRPOTrainer
-    from sense.core.evolution.population import PopulationManager
-    from sense.core.memory.ltm import AgeMem
-else:
-    # Running as module
-    from .core.reasoning_orchestrator import ReasoningOrchestrator
-    from .core.evolution.curriculum import CurriculumAgent
-    from .core.evolution.grpo import GRPOTrainer
-    from .core.evolution.population import PopulationManager
-    from .core.memory.ltm import AgeMem
+# 1. Import ONLY what exists
+from sense.core.reasoning_orchestrator import ReasoningOrchestrator
+from sense.llm.factory import LLMFactory
 
-logging.basicConfig(level=logging.INFO)
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
 
-async def self_evolution_loop():
-    """
-    Full self-evolution: Curriculum → GRPO → Orchestrator → Memory.
-    """
-    config = {
-        'population_size': 4,
-        'grpo_group_size': 2,
-        'stm_max_entries': 50
-    }
-    curriculum = CurriculumAgent(config)
-    grpo = GRPOTrainer(config)  # Now enabled!
-    population = grpo.population_manager
-    memory = AgeMem(config)
-    orch = ReasoningOrchestrator()
+def parse_args():
+    parser = argparse.ArgumentParser(description="SENSE: Universal Agent")
+    parser.add_argument("--task", type=str, required=False, help="Single task to execute")
+    parser.add_argument("--provider", type=str, help="Override LLM Provider")
+    parser.add_argument("--url", type=str, help="Override LLM URL")
+    parser.add_argument("--model", type=str, help="Override Model Name")
+    parser.add_argument("--key", type=str, help="Override API Key")
+    return parser.parse_args()
 
-    logger = logging.getLogger("MainLoop")
-    loop_count = 0
-    training_interval = 5  # Train GRPO every N iterations
+async def main():
+    args = parse_args()
+    print("🤖 SENSE INITIALIZING...")
 
-    while True:
-        loop_count += 1
-        logger.info(f"Starting loop {loop_count}")
+    # 2. Initialize LLM Client
+    llm_client = LLMFactory.create_client(
+        cli_provider=args.provider,
+        cli_url=args.url,
+        cli_model=args.model,
+        cli_key=args.key
+    )
+    
+    model_name = LLMFactory.get_model_name(args.model)
 
-        # Generate task
-        task = await curriculum.get_next_task()
-        logger.info(f"Task: {task}")
+    if not llm_client:
+        print("❌ Fatal: Could not initialize LLM Brain.")
+        return
 
-        # Solve with memory
-        result = await orch.solve_task(task)
+    # 3. Inject Client into Orchestrator
+    agent = ReasoningOrchestrator(llm_client=llm_client, model_name=model_name)
 
-        # Store in memory
-        memory.add_memory(task, result.plan, result.execution_result, result.success)
-
-        # Update genome fitness based on task success
-        if population.population:
-            # Use the best genome's fitness as proxy
-            best_genome = population.get_best_genome()
-            if best_genome:
-                # Update fitness: success = +1, failure = -0.5
-                fitness_delta = 1.0 if result.success else -0.5
-                best_genome.fitness = best_genome.fitness + fitness_delta
-                logger.info(f"Updated genome fitness: {best_genome.fitness}")
-
-        # Evolve population periodically
-        if loop_count % training_interval == 0:
-            logger.info("Running evolution step...")
-            try:
-                # Evolve population
-                population.evolve(generations=1)
-                logger.info("Evolution step complete")
-
-                # Train GRPO
-                # grpo.train(generations=1)  # Optional: full GRPO training
-            except Exception as e:
-                logger.warning(f"Evolution step failed: {e}")
-
-        logger.info(f"Loop {loop_count} complete. Success: {result.success}")
-        time.sleep(10)  # Slow loop for demo
-
-def main():
-    """Entry point for console script."""
-    asyncio.run(self_evolution_loop())
+    # 4. Run Task or Standby
+    if args.task:
+        print(f"🚀 Executing Task: {args.task}")
+        try:
+            # The 'run' method returns the final string result
+            result = await agent.run(args.task)
+            
+            print("\n" + "="*40)
+            print("   SENSE EXECUTION RESULT")
+            print("="*40)
+            print(f"📝 {result}")
+            print("="*40)
+            
+        except Exception as e:
+            print(f"❌ Execution Error: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        print("🤖 SENSE Standby Mode (Ready for API/Dashboard)")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

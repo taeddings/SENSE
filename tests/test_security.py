@@ -1,5 +1,5 @@
 import unittest
-from sense_v2.utils.security import hash_password, verify_password
+from sense.utils.security import hash_password, verify_password
 
 class TestSecurity(unittest.TestCase):
 

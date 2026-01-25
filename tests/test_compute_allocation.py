@@ -13,7 +13,7 @@ Tests cover:
 import pytest
 from unittest.mock import patch, MagicMock
 
-from sense_v2.llm.reasoning.compute_allocation import (
+from sense.llm.reasoning.compute_allocation import (
     estimate_complexity,
     calculate_retrieval_depth,
     AdaptiveReasoningBudget,
@@ -553,7 +553,7 @@ class TestResourceStatus:
         assert status.vram_percent == 0.0
         assert status.sensor_status == "ONLINE"
 
-    @patch('sense_v2.llm.reasoning.compute_allocation.PSUTIL_AVAILABLE', False)
+    @patch('sense.llm.reasoning.compute_allocation.PSUTIL_AVAILABLE', False)
     def test_get_current_without_psutil(self):
         """get_current() handles missing psutil."""
         status = ResourceStatus.get_current()

@@ -8,8 +8,8 @@ import asyncio
 import tempfile
 import os
 
-from sense_v2.tools.terminal import TerminalTool, TerminalInteractiveTool
-from sense_v2.core.schemas import ToolResultStatus
+from sense.tools.terminal import TerminalTool, TerminalInteractiveTool
+from sense.core.schemas import ToolResultStatus
 
 
 class TestTerminalToolSchema:

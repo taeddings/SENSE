@@ -9,13 +9,13 @@ import tempfile
 import os
 from pathlib import Path
 
-from sense_v2.tools.filesystem import (
+from sense.tools.filesystem import (
     FileReadTool,
     FileWriteTool,
     FileListTool,
     FileExistsTool,
 )
-from sense_v2.core.schemas import ToolResultStatus
+from sense.core.schemas import ToolResultStatus
 
 
 class TestFileReadSuccess:

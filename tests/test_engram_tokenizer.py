@@ -3,13 +3,13 @@ import os
 import numpy as np
 from unittest.mock import MagicMock, patch
 # Import EngramTokenizerBuilder and EngramTokenizer directly from the module under test
-from sense_v2.engram.tokenizer import EngramTokenizerBuilder, EngramTokenizer
+from sense.engram.tokenizer import EngramTokenizerBuilder, EngramTokenizer
 import torch
 
 # Mock AutoTokenizer for testing purposes, patching it where it's used in the module
 @pytest.fixture
 def mock_auto_tokenizer():
-    with patch('sense_v2.engram.tokenizer.AutoTokenizer.from_pretrained') as mock_from_pretrained:
+    with patch('sense.engram.tokenizer.AutoTokenizer.from_pretrained') as mock_from_pretrained:
         mock_tokenizer = MagicMock()
         mock_tokenizer.vocab = {
             "hello": 1, "Hello": 2, "HELLO": 3,

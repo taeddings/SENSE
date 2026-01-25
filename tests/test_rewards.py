@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock, AsyncMock, patch
 
-from sense_v2.agents.agent_0.trainer import (
+from sense.agents.agent_0.trainer import (
     format_reward,
     tool_usage_reward,
     diversity_penalty,
@@ -14,7 +14,7 @@ from sense_v2.agents.agent_0.trainer import (
     RewardComponents,
     GRPOTrainer,
 )
-from sense_v2.agents.agent_0.curriculum import (
+from sense.agents.agent_0.curriculum import (
     extract_boxed_content,
     validate_structured_output,
     format_task_as_structured,
@@ -356,7 +356,7 @@ class TestGRPOTrainerEnhancedRewards:
     @pytest.fixture
     def trainer(self):
         """Create a trainer with mocked curriculum."""
-        with patch('sense_v2.agents.agent_0.trainer.CurriculumAgent'):
+        with patch('sense.agents.agent_0.trainer.CurriculumAgent'):
             mock_curriculum = Mock()
             trainer = GRPOTrainer(
                 curriculum_agent=mock_curriculum,

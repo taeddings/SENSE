@@ -6,10 +6,10 @@ from unittest.mock import MagicMock, patch
 import os
 
 # Mock necessary components for EngramFusionLayer
-from sense_v2.core.config import EngramConfig
-from sense_v2.engram.tokenizer import EngramTokenizer
-from sense_v2.engram.storage import MMapEmbeddingStorage
-from sense_v2.engram.model import EngramFusionLayer
+from sense.core.config import EngramConfig
+from sense.engram.tokenizer import EngramTokenizer
+from sense.engram.storage import MMapEmbeddingStorage
+from sense.engram.model import EngramFusionLayer
 
 # Fixture to create dummy files for EngramTokenizer and MMapEmbeddingStorage
 @pytest.fixture
@@ -28,7 +28,7 @@ def setup_engram_files(tmp_path):
     dummy_mmap.flush()
 
     # Patch EngramConfig to use these dummy paths
-    with patch('sense_v2.core.config.EngramConfig') as MockEngramConfig:
+    with patch('sense.core.config.EngramConfig') as MockEngramConfig:
         mock_config_instance = MockEngramConfig.return_value
         mock_config_instance.shadow_map_path = str(shadow_map_path)
         mock_config_instance.storage_path = str(engram_table_path)

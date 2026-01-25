@@ -1,8 +1,8 @@
 import pytest
 from pydantic import ValidationError
-from sense_v2.core.config import Config
-from sense_v2.engram.manager import EngramMemoryManager
-# from sense_v2.engram.config import EngramConfig  # Legacy, skipped for Phase 2
+from sense.core.config import Config
+from sense.engram.manager import EngramMemoryManager
+# from sense.engram.config import EngramConfig  # Legacy, skipped for Phase 2
 EngramConfig = type('EngramConfig', (), {})()  # Stub
 
 @pytest.fixture

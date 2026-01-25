@@ -10,20 +10,20 @@ import asyncio
 import io
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from sense_v2.protocol import (
+from sense.protocol import (
     SENSEMessage,
     METHOD_ID_PING,
     METHOD_ID_AGENT_USER,
     FLAG_RESPONSE,
 )
-from sense_v2.protocol.async_io import (
+from sense.protocol.async_io import (
     AsyncMessageReader,
     AsyncMessageWriter,
     AsyncMessageChannel,
     read_message,
     write_message,
 )
-from sense_v2.protocol.exceptions import (
+from sense.protocol.exceptions import (
     ConnectionClosedError,
     ReadTimeoutError,
     WriteTimeoutError,
