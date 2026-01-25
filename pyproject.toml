@@ -13,6 +13,7 @@ dependencies = [
     "numpy",
     "psutil",
     "streamlit",
+    "openai",
 ]
 
 [project.scripts]
