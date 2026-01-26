@@ -49,3 +49,34 @@ pytest_out.txt
 requirements.txt
 test_out.txt
 ARCH.md
+
+# --- Restructuring Rules ---
+/_Marketing/
+/_Presentations/
+/_Reference_Lib/
+
+# Markdown (Exclude non-code markdown)
+*.md
+!README.md
+!CONTRIBUTING.md
+!CHANGELOG.md
+
+# Design/Media
+*.psd
+*.ai
+*.indd
+*.fig
+*.sketch
+*.raw
+*.mp4
+*.mov
+
+# Documents
+*.pptx
+*.key
+*.docx
+*.pdf
+*.xlsx
+
+# System/Config
+.env.local

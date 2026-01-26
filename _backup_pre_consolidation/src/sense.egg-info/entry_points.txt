@@ -1,5 +1,0 @@
-[console_scripts]
-sense = sense.autonomous:main
-sense-api = sense.api:main
-sense-dashboard = sense.dashboard:main
-sense-evolve = sense.main:main
