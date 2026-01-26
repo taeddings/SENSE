@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sense"
-version = "3.0.0"
+version = "3.1.0"
 description = "SENSE: Self-Evolving Network & Semantic Engine"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -14,21 +14,21 @@ dependencies = [
     "psutil",
     "streamlit",
     "openai",
+    "pyyaml",
+    "sentence-transformers"
 ]
 
 [project.scripts]
-sense = "sense.autonomous:main"
-sense-evolve = "sense.main:main"
-sense-dashboard = "sense.dashboard:main"
-sense-api = "sense.api:main"
+sense = "sense.main:main"
+sense-dashboard = "sense.dashboard_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["sense*", "sense_v2*"]
+include = ["sense*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-norecursedirs = ["tools", "agent-zero", "Agent0"]
+norecursedirs = ["tools", "agent-zero", "Agent0", "_reference_libs", "_archive"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]

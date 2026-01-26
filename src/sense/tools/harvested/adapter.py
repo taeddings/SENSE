@@ -8,7 +8,7 @@ from sense.core.plugins.interface import PluginABC, SensorReading
 class AgentZeroToolAdapter(PluginABC):
     """
     Wraps an Agent Zero 'Instrument' using strict CLI isolation.
-    Does NOT import the python file to prevent side-effects (like sys.exit).
+    Runs all tools in the public Android Download workspace.
     """
     def __init__(self, tool_path: str):
         super().__init__()
@@ -21,9 +21,9 @@ class AgentZeroToolAdapter(PluginABC):
     def get_manifest(self) -> Dict[str, Any]:
         return {
             "name": self.name,
-            "version": "1.2.0",
+            "version": "1.4.0",
             "capability": "actuator",
-            "description": f"Sandboxed Agent Zero Tool: {self.name}",
+            "description": f"Universal Workspace Agent Zero Tool: {self.name}",
             "sensors": [],
             "actuators": [self.name]
         }
@@ -42,8 +42,7 @@ class AgentZeroToolAdapter(PluginABC):
 
     def execute(self, *args, **kwargs):
         """
-        Executes the tool via Subprocess (CLI) only.
-        This prevents the tool from crashing the main agent process.
+        Executes the tool via Subprocess (CLI) in the User's Download Workspace.
         """
         # Extract argument (supports 'arg', 'url', 'input', 'query')
         arg = kwargs.get('arg') or kwargs.get('url') or kwargs.get('input') or kwargs.get('query')
@@ -55,40 +54,52 @@ class AgentZeroToolAdapter(PluginABC):
 
         self.logger.info(f"Executing {self.name} via CLI with arg: {arg}")
 
-        # Construct Command
+        # 1. RESOLVE SCRIPT (Universal Search)
         script_path = os.path.join(self.tool_path, f"{self.name}.py")
-        
-        # Verify file exists
         if not os.path.exists(script_path):
-             # Search for the main .py file if name doesn't match directory
             possible_files = [f for f in os.listdir(self.tool_path) if f.endswith('.py') and f != "__init__.py"]
             if possible_files:
                 script_path = os.path.join(self.tool_path, possible_files[0])
             else:
                 return f"Error: Could not find python script for {self.name}"
 
+        # 2. CONVERT TO ABSOLUTE PATH
+        # Ensures script is found even if we change the cwd below.
+        script_path = os.path.abspath(script_path)
+
+        # 3. DEFINE WORKSPACE
+        # All tools run inside the public Download folder for instant access.
+        workspace = "/sdcard/Download"
+        
+        # Ensure workspace exists
+        if not os.path.exists(workspace):
+            try:
+                os.makedirs(workspace, exist_ok=True)
+            except Exception as e:
+                # Fallback to current dir if permission fails
+                self.logger.warning(f"Could not write to {workspace}: {e}")
+                workspace = None
+
+        # 4. EXECUTE
         cmd = [sys.executable, script_path, str(arg)]
         
         try:
-            # CAPTURE OUTPUT
             result = subprocess.run(
                 cmd, 
                 capture_output=True, 
                 text=True, 
-                timeout=60
+                timeout=120, # Generous timeout for media tools
+                cwd=workspace # <--- Run *inside* the download folder
             )
             
             output = result.stdout + "\n" + result.stderr
             
-            # --- CLEANUP HEURISTICS ---
-            # Filter out progress bars and noise
+            # 5. CLEANUP NOISE
             clean_lines = []
             for line in output.split('\n'):
-                # Strip typical download bars
-                if "[download]" in line and "%" in line:
-                    continue
-                if line.strip() == "":
-                    continue
+                # Heuristics to remove progress bars
+                if "%" in line and ("ETA" in line or "at" in line): continue
+                if line.strip() == "": continue
                 clean_lines.append(line)
             
             clean_output = "\n".join(clean_lines)
@@ -99,6 +110,6 @@ class AgentZeroToolAdapter(PluginABC):
                 return f"Tool Error: {result.stderr}\nOutput: {clean_output}"
 
         except subprocess.TimeoutExpired:
-            return "Error: Tool execution timed out (60s)."
+            return "Error: Tool execution timed out (120s)."
         except Exception as e:
             return f"Execution Exception: {e}"

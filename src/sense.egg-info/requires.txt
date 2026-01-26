@@ -3,3 +3,5 @@ numpy
 psutil
 streamlit
 openai
+pyyaml
+sentence-transformers

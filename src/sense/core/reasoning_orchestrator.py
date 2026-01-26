@@ -26,9 +26,6 @@ class ReasoningOrchestrator(BaseAgent):
             plugins = load_all_plugins()
             for p in plugins:
                 self.tools[p.name] = p
-        
-        # FINAL STABLE REGEX: [tool_name( ... 'input' ... )]
-        self.tool_regex = re.compile(r'''\[\s*(\w+)\s*\(.*?['"](.*?)['"].*?\)''', re.IGNORECASE | re.DOTALL)
 
     # Required by BaseAgent abstract interface
     async def process_message(self, message):
@@ -37,12 +34,10 @@ class ReasoningOrchestrator(BaseAgent):
     def _get_router_prompt(self, task):
         return f"""
 TASK: {task}
-
 INSTRUCTIONS:
 Classify the task above.
 - If it requires downloading files, searching the web, or checking external data, output: TOOL
 - If it is a greeting, general knowledge, or coding question that you can answer yourself, output: CHAT
-
 ANSWER (TOOL or CHAT):
 """
 
@@ -80,14 +75,13 @@ Do not hallucinate tools.
         """Backup logic for small models"""
         triggers = ["download", "search", "find", "get the title", "use tool", "lookup", "what is the"]
         task_lower = task.lower()
-        if "http" in task_lower: return True # URLs usually imply tools
+        if "http" in task_lower: return True 
         if any(t in task_lower for t in triggers): return True
         return False
 
     async def _decide_mode(self, task):
-        """Step 1: The Router"""
         try:
-            # 1. Ask the Brain
+            # 1. Router Call
             response = await self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[{"role": "user", "content": self._get_router_prompt(task)}],
@@ -99,23 +93,70 @@ Do not hallucinate tools.
             if "TOOL" in decision_text: return "TOOL"
             if "CHAT" in decision_text: return "CHAT"
             
-            # 2. Heuristic Backup
-            self.logger.warning(f"⚠️ Ambiguous Router output. Using heuristics.")
             if self._heuristic_check(task): return "TOOL"
             return "CHAT"
 
-        except Exception as e:
-            self.logger.warning(f"Router Error ({e}). Using heuristics.")
+        except Exception:
             if self._heuristic_check(task): return "TOOL"
             return "CHAT"
+
+    def _manual_parse(self, content):
+        """
+        CAVEMAN PARSER: No Regex. Just string slicing.
+        Returns: (tool_name, tool_input) or (None, None)
+        """
+        try:
+            # 1. Find start bracket
+            start_idx = content.find('[')
+            if start_idx == -1: return None, None
+            
+            # 2. Find end bracket (look from the end to catch nested stuff if any)
+            end_idx = content.rfind(']')
+            if end_idx == -1 or end_idx < start_idx: return None, None
+            
+            # 3. Extract the blob: "yt_download(input='...')"
+            blob = content[start_idx+1 : end_idx].strip()
+            
+            # 4. Split name and args by first parenthesis
+            paren_idx = blob.find('(')
+            if paren_idx == -1: return None, None
+            
+            name = blob[:paren_idx].strip()
+            args = blob[paren_idx+1 :].strip()
+            
+            # 5. Remove trailing parenthesis ')' if present
+            if args.endswith(')'):
+                args = args[:-1]
+                
+            # 6. Clean Args (Remove input=, quotes)
+            # We just want the value. 
+            if "'" in args or '"' in args:
+                # Find first quote
+                q_start = -1
+                for i, char in enumerate(args):
+                    if char in ["'", '"']:
+                        q_start = i
+                        break
+                if q_start != -1:
+                    # Find matching closing quote
+                    q_char = args[q_start]
+                    q_end = args.find(q_char, q_start+1)
+                    if q_end != -1:
+                        final_input = args[q_start+1 : q_end]
+                        return name, final_input
+
+            # Fallback: just return raw args stripped
+            final_input = args.replace("input=", "").strip()
+            return name, final_input
+
+        except Exception:
+            return None, None
 
     async def run(self, task: str):
         self.logger.info(f"🤔 SENSE is thinking about: {task}")
         
-        # 1. ROUTING STEP
         mode = await self._decide_mode(task)
         
-        # 2. SELECT SYSTEM PROMPT
         if mode == "TOOL" and self.tools:
             system_prompt = self._get_tool_mode_prompt()
             self.logger.info("⚙️  Mode: TOOL EXECUTION")
@@ -128,9 +169,11 @@ Do not hallucinate tools.
             {"role": "user", "content": task}
         ]
 
-        # 3. EXECUTION LOOP
+        last_tool_signature = None
+
         for turn in range(5):
             try:
+                # 1. GENERATE
                 response = await self.client.chat.completions.create(
                     model=self.model_name,
                     messages=messages,
@@ -141,38 +184,46 @@ Do not hallucinate tools.
                 self.logger.info(f"🗣️  Turn {turn} Output:\n{content[:150]}...") 
                 messages.append({"role": "assistant", "content": content})
 
-                # DETECT TOOL USAGE
-                tool_name = None
-                tool_input = None
+                # 2. PARSE (Caveman Style)
+                tool_name, tool_input = self._manual_parse(content)
                 
-                # Safe Search
-                bracket_match = self.tool_regex.search(content)
+                # 3. EVALUATE LOGIC
                 
-                if bracket_match:
-                    try:
-                        tool_name = bracket_match.group(1).strip()
-                        tool_input = bracket_match.group(2).strip()
-                    except IndexError:
-                        self.logger.error("❌ Regex matched but groups failed.")
-                        continue
-
-                if tool_name and tool_name in self.tools:
-                    self.logger.info(f"🛠️  Executing: {tool_name} -> {tool_input}")
-                    try:
-                        # Robust execution call
-                        result = self.tools[tool_name].execute(tool_input, arg=tool_input, url=tool_input)
-                    except Exception as e:
-                        result = f"Error executing tool: {e}"
-                    
-                    clean_result = str(result)[:1000]
-                    self.logger.info(f"✅ Result: {clean_result[:100]}...")
-                    messages.append({"role": "user", "content": f"Tool Output: {clean_result}\n\n(Now provide the Final Answer.)"})
-                
-                elif tool_name:
-                    messages.append({"role": "user", "content": f"Error: Tool '{tool_name}' not found."})
-                
-                else:
+                # CASE A: No tool found -> We are done.
+                if not tool_name:
                     return f"✅ FINAL ANSWER:\n{content}"
+
+                # CASE B: Duplicate Tool -> We are done (Loop protection).
+                current_sig = f"{tool_name}:{tool_input}"
+                if current_sig == last_tool_signature:
+                    self.logger.warning(f"🛑 Duplicate command detected. Halting loop.")
+                    return f"✅ FINAL ANSWER:\n{content}"
+                last_tool_signature = current_sig
+
+                # CASE C: Tool Execution
+                if tool_name in self.tools:
+                    self.logger.info(f"🛠️  Executing: {tool_name} -> {tool_input}")
+                    
+                    # Execute
+                    try:
+                        result = self.tools[tool_name].execute(arg=tool_input, url=tool_input)
+                    except Exception as e:
+                        result = f"Error: {e}"
+                    
+                    # Log & truncate
+                    clean_result = str(result)[:2000] 
+                    self.logger.info(f"✅ Result: {clean_result[:100]}...")
+                    
+                    messages.append({
+                        "role": "user", 
+                        "content": f"Tool Output: {clean_result}\n\n(Analyze this result. If complete, summarize. If not, use another tool.)"
+                    })
+                
+                # CASE D: Tool Not Found
+                else:
+                    err_msg = f"System Error: Tool '{tool_name}' not found. Available tools: {list(self.tools.keys())}"
+                    self.logger.warning(err_msg)
+                    messages.append({"role": "user", "content": err_msg})
 
             except Exception as e:
                 self.logger.error(f"❌ Error: {e}")

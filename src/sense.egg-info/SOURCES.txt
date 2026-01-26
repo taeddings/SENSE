@@ -4,6 +4,7 @@ src/sense/__init__.py
 src/sense/cli.py
 src/sense/config.py
 src/sense/dashboard_cli.py
+src/sense/main.py
 src/sense.egg-info/PKG-INFO
 src/sense.egg-info/SOURCES.txt
 src/sense.egg-info/dependency_links.txt
@@ -34,6 +35,7 @@ src/sense/core/evolution/population.py
 src/sense/core/plugins/__init__.py
 src/sense/core/plugins/engram_ingestion.py
 src/sense/core/plugins/interface.py
+src/sense/core/plugins/loader.py
 src/sense/core/plugins/mock_sensor.py
 src/sense/database/database.py
 src/sense/database/schema.py
@@ -51,6 +53,7 @@ src/sense/grounding/tier2.py
 src/sense/grounding/tier3.py
 src/sense/llm/__init__.py
 src/sense/llm/base.py
+src/sense/llm/factory.py
 src/sense/llm/providers.py
 src/sense/llm/kernels/__init__.py
 src/sense/llm/kernels/functional.py
@@ -60,11 +63,15 @@ src/sense/llm/reasoning/compute_allocation.py
 src/sense/memory/__init__.py
 src/sense/memory/agemem.py
 src/sense/memory/agemem_integration.py
+src/sense/memory/bridge.py
 src/sense/memory/embeddings.py
 src/sense/memory/engram_schemas.py
 src/sense/memory/hierarchy.py
 src/sense/memory/ltm.py
 src/sense/memory/stm.py
+src/sense/memory/transplant/context.py
+src/sense/memory/transplant/memory.py
+src/sense/memory/transplant/memory_consolidation.py
 src/sense/models/__init__.py
 src/sense/models/user.py
 src/sense/models/components/__init__.py
@@ -84,10 +91,17 @@ src/sense/tools/filesystem.py
 src/sense/tools/memory_ops.py
 src/sense/tools/memory_tools.py
 src/sense/tools/terminal.py
+src/sense/tools/harvested/__init__.py
+src/sense/tools/harvested/adapter.py
+src/sense/tools/harvested/default/yt_download/download_video.py
 src/sense/utils/__init__.py
 src/sense/utils/dev_log.py
 src/sense/utils/health.py
 src/sense/utils/security.py
+src/sense/vision/__init__.py
+src/sense/vision/bridge.py
+src/sense/vision/vision_process.py
+src/sense/vision/vision_utils.py
 tests/test_anomaly.py
 tests/test_api.py
 tests/test_compute_allocation.py
