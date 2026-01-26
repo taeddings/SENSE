@@ -21,18 +21,18 @@ Thumbs.db
 *.db
 debug_*.json
 sense_search_*
-vision_*
+# FIXED: Only block image artifacts, not source code
+vision_*.jpg
+vision_*.png
 
 # 3. SENSE PRIVATE DATA
-# Block the memory cores and user config
 src/sense/data/
 src/sense/config/
 config.local.py
 .env
 secrets.json
 
-# 4. PERSONAL WORKSPACE EXCLUSIONS (CRITICAL)
-# These folders must NEVER be committed
+# 4. PERSONAL WORKSPACE EXCLUSIONS
 _Reference_Lib/
 _archive/
 _backups/
@@ -45,7 +45,6 @@ temp/
 tmp/
 
 # 5. EXCEPTION ALLOWLIST
-# Ensure these are always tracked
 !README.md
 !requirements.txt
 !.gitignore

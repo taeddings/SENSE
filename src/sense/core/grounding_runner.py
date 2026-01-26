@@ -1,1 +1,27 @@
-\"\"\"Grounding System Runner\n\nIntegrates Three-Tier Grounding with evolutionary core.\nRuns closed-loop simulations and triggers evolution.\n\"\"\"\n\nfrom .tier3 import Tier3Grounding\nfrom ..evolution.population import Population  # Integrate with evolution\n\n\ndef run_grounding_evolution(num_generations: int = 10, cycles_per_gen: int = 5):\n    \"\"\"Main runner for grounding + evolution loop.\"\"\"\n    population = Population(size=10)  # Init population\n    tier3 = Tier3Grounding()\n    \n    for gen in range(num_generations):\n        print(f\"Generation {gen + 1}\")\n        feedback = tier3.run_verification_loop(cycles_per_gen)\n        \n        # Compute fitness from feedback\n        avg_misalignment = sum(f['verification']['misalignment_score'] for f in feedback) / len(feedback)\n        \n        # Apply to population\n        for individual in population.individuals:\n            individual.fitness = 1 / (1 + avg_misalignment)  # Inverse fitness\n        \n        population.evolve()  # Evolve based on fitness\n        \n    return population\n\n\nif __name__ == \"__main__\":\n    run_grounding_evolution()
+"""Grounding System Runner
+
+Integrates Three-Tier Grounding with evolutionary core.
+Runs closed-loop simulations and triggers evolution.
+"""
+
+from sense.grounding.tier3 import Tier3Grounding
+
+
+def run_grounding_evolution(num_generations: int = 10, cycles_per_gen: int = 5):
+    """Main runner for grounding + evolution loop."""
+    tier3 = Tier3Grounding()
+
+    for gen in range(num_generations):
+        print(f"Generation {gen + 1}")
+        feedback = tier3.run_verification_loop(cycles_per_gen)
+
+        # Compute fitness from feedback
+        if feedback:
+            avg_misalignment = sum(f['verification']['misalignment_score'] for f in feedback) / len(feedback)
+            print(f"Average misalignment: {avg_misalignment:.4f}")
+
+    return tier3
+
+
+if __name__ == "__main__":
+    run_grounding_evolution()

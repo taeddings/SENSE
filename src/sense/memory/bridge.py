@@ -4,6 +4,7 @@ import time
 import logging
 import sys
 import math
+import re
 
 # Law 3: OS-Agnostic Workspace
 def get_memory_path():
@@ -16,6 +17,13 @@ def get_memory_path():
     return os.path.join(base, "episodic_engrams.json")
 
 MEMORY_FILE = get_memory_path()
+
+# STOP WORDS LIST (Common words to ignore during resonance check)
+STOP_WORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "has", "he",
+    "in", "is", "it", "its", "of", "on", "that", "the", "to", "was", "were",
+    "will", "with", "you", "your", "me", "my", "i", "this", "what", "how", "why"
+}
 
 class UniversalMemory:
     def __init__(self):
@@ -42,25 +50,24 @@ class UniversalMemory:
                 pass
 
     def _calculate_retention(self, engram):
-        """
-        The Ebbinghaus Forgetting Curve implementation.
-        Strength = Initial_Strength * e^(-Decay * Time_Elapsed)
-        """
-        elapsed_hours = (time.time() - engram['last_accessed']) / 3600
-        # Base decay is slow (0.001), faster if strength is low
+        elapsed_hours = (time.time() - engram.get('last_accessed', time.time())) / 3600
         decay_rate = 0.005 / max(engram.get('strength', 1.0), 0.1)
-        
         current_strength = engram.get('strength', 1.0) * math.exp(-decay_rate * elapsed_hours)
         return current_strength
 
+    def _extract_keywords(self, text):
+        """Extracts significant keywords by removing stop words."""
+        if not text: return set()
+        tokens = re.findall(r'\b\w+\b', text.lower())
+        keywords = {t for t in tokens if t not in STOP_WORDS and len(t) > 2}
+        return keywords
+
     def save_engram(self, content, tags=None):
-        """Creates a fresh Neural Engram."""
         if not content: return
         
-        # Check for duplicate concepts to reinforce instead of duplicate
         for e in self.engrams:
             if content.lower() in e['content'].lower() or e['content'].lower() in content.lower():
-                e['strength'] = e.get('strength', 1.0) + 0.5  # Reinforce existing
+                e['strength'] = e.get('strength', 1.0) + 0.5
                 e['last_accessed'] = time.time()
                 self._persist()
                 return
@@ -71,40 +78,36 @@ class UniversalMemory:
             "last_accessed": time.time(),
             "content": content,
             "tags": tags or [],
-            "strength": 1.0  # Initial neural strength
+            "strength": 1.0
         }
         self.engrams.append(engram)
-        self.logger.info(f"💾 Engram Created: '{content[:30]}...' (Strength: 1.0)")
+        self.logger.info(f"💾 Engram Created: '{content[:30]}...'")
         self._persist()
 
     def recall(self, query):
-        """
-        Retrieves memories based on Resonance (Keyword Match * Retention Strength).
-        """
         if not query: return []
-        query_words = set(query.lower().split())
-        hits = []
         
+        # 1. Extract ONLY significant words from query
+        query_keywords = self._extract_keywords(query)
+        if not query_keywords: return []
+
+        hits = []
         for engram in self.engrams:
-            # 1. Neuroplasticity Check
             retention = self._calculate_retention(engram)
+            engram_keywords = self._extract_keywords(engram['content'])
             
-            # 2. Resonance Check
-            content_lower = engram['content'].lower()
-            match_score = sum(1 for w in query_words if w in content_lower)
+            # Intersection Match
+            match_score = len(query_keywords.intersection(engram_keywords))
             
             if match_score > 0:
-                # Reinforce this memory because it was useful!
                 engram['strength'] = engram.get('strength', 1.0) + 0.1
                 engram['last_accessed'] = time.time()
-                
                 final_score = match_score * retention
                 hits.append((final_score, engram['content']))
         
-        self._persist() # Save the reinforcement updates
-        
+        self._persist()
         hits.sort(key=lambda x: x[0], reverse=True)
-        return [h[1] for h in hits[:3]]
+        return [h[1] for h in hits[:2]]
 
     def _persist(self):
         try:

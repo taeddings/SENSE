@@ -55,9 +55,10 @@ def search(query, num_results=5):
 
     results = []
     try:
-        # CLEAN COMMAND: No --unsafe, No --noprompt
-        # Just standard flags supported by all versions
-        cmd = [ddgr_path, "--json", "-n", "25", query]
+        # OPTIMIZED COMMAND: Use --json (implies --np), explicit --np for clarity
+        # Safe search enabled by default (no --unsafe flag)
+        # Flags verified against ddgr v2.2+
+        cmd = [ddgr_path, "--json", "--np", "-n", "25", query]
         
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
         

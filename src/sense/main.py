@@ -1,84 +1,113 @@
+import sys
+import os
+import logging
 import argparse
 import asyncio
-import logging
-import sys
+import importlib.util
+import socket
+from urllib.parse import urlparse
 
-# 1. Import ONLY what exists
+# Add src to path
+# __file__ is src/sense/main.py, so parent is src/sense, parent of that is src/
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from sense.core.reasoning_orchestrator import ReasoningOrchestrator
-from sense.llm.factory import LLMFactory
 
-# Configure Logging
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    stream=sys.stdout
-)
-
-def parse_args():
-    parser = argparse.ArgumentParser(description="SENSE: Universal Agent")
-    parser.add_argument("task", nargs="*", help="The task to execute (optional, can be passed as positional args)")
-    parser.add_argument("--task", dest="task_flag", type=str, required=False, help="Single task to execute (flag)")
-    parser.add_argument("--provider", type=str, help="Override LLM Provider")
-    parser.add_argument("--url", type=str, help="Override LLM URL")
-    parser.add_argument("--model", type=str, help="Override Model Name")
-    parser.add_argument("--key", type=str, help="Override API Key")
-    return parser.parse_args()
-
-async def async_main():
-    args = parse_args()
-    
-    # Handle task input from positional args OR flag
-    task_input = args.task_flag
-    if not task_input and args.task:
-        task_input = " ".join(args.task)
+def is_server_active(url):
+    """
+    Performs a rapid 'Pulse Check' (TCP Connect) to see if the server is reachable.
+    Timeout is set to 0.5 seconds to keep startup snappy.
+    """
+    try:
+        parsed = urlparse(url)
+        host = parsed.hostname
+        # Handle cases where hostname might be None
+        if not host: return False
+        port = parsed.port or (443 if parsed.scheme == 'https' else 80)
         
-    print("🤖 SENSE INITIALIZING...")
+        # Try to open a socket connection
+        with socket.create_connection((host, port), timeout=0.5):
+            return True
+    except:
+        return False
 
-    # 2. Initialize LLM Client
-    llm_client = LLMFactory.create_client(
-        cli_provider=args.provider,
-        cli_url=args.url,
-        cli_model=args.model,
-        cli_key=args.key
-    )
+def load_intelligent_config():
+    """
+    Loads config.local.py but performs a Health Check before applying it.
+    Fallback: Localhost (Termux).
+    """
+    # 1. Default (The Safety Net)
+    active_config = {
+        "provider": "openai_compatible",
+        "base_url": "http://127.0.0.1:8080/v1",
+        "api_key": "local-model",
+        "model_name": "local-mobile",
+        "timeout": 60.0
+    }
+
+    # 2. Find Override File
+    override_path = os.path.expanduser("~/project/SENSE/config.local.py")
     
-    model_name = LLMFactory.get_model_name(args.model)
-
-    if not llm_client:
-        print("❌ Fatal: Could not initialize LLM Brain.")
-        return
-
-    # 3. Inject Client into Orchestrator
-    agent = ReasoningOrchestrator(llm_client=llm_client, model_name=model_name)
-
-    # 4. Run Task or Standby
-    if task_input:
-        print(f"🚀 Executing Task: {task_input}")
+    if os.path.exists(override_path):
         try:
-            # The 'run' method returns the final string result
-            result = await agent.run(task_input)
+            # Load the file dynamically
+            spec = importlib.util.spec_from_file_location("custom_config", override_path)
+            cfg_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(cfg_module)
             
-            print("\n" + "="*40)
-            print("   SENSE EXECUTION RESULT")
-            print("="*40)
-            print(f"📝 {result}")
-            print("="*40)
-            
+            if hasattr(cfg_module, "LLM_SETTINGS"):
+                remote_settings = cfg_module.LLM_SETTINGS
+                remote_url = remote_settings.get("base_url", "")
+
+                # 3. THE INTELLIGENT HOOK (Pulse Check)
+                print(f"📡 Pinging Remote Core at {remote_url}...")
+                if is_server_active(remote_url):
+                    active_config.update(remote_settings)
+                    print(f"✅ CONNECTION SUCCESS: Switched to Remote Core (PC Mode).")
+                else:
+                    print(f"⚠️  CONNECTION FAILED: Remote Core unreachable.")
+                    print(f"🔄 FALLBACK ACTIVE: Reverting to Local Core (Mobile Mode).")
         except Exception as e:
-            print(f"❌ Execution Error: {e}")
-            import traceback
-            traceback.print_exc()
-    else:
-        print("🤖 SENSE Standby Mode (Ready for API/Dashboard)")
+            print(f"❌ CONFIG ERROR: {e}")
+
+    return active_config
 
 def main():
-    """Synchronous entry point for console_scripts."""
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+    parser = argparse.ArgumentParser(description="SENSE: Self-Evolving Neural Stabilization Engine")
+    parser.add_argument("task", nargs="*", help="The task or query for SENSE")
+    parser.add_argument("--reset", action="store_true", help="Clear short-term context")
+    args = parser.parse_args()
+
+    # Configure basic logging for CLI
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logger = logging.getLogger("root")
+    
+    print("🤖 SENSE INITIALIZING...")
+
+    # Load Config with Auto-Failover
+    llm_config = load_intelligent_config()
+    logger.info(f"🧠 LLM CONNECT: {llm_config['base_url']} [{llm_config['model_name']}]")
+
     try:
-        asyncio.run(async_main())
-    except KeyboardInterrupt:
-        print("\n👋 SENSE Stopped by User")
+        agent = ReasoningOrchestrator(llm_config=llm_config)
+        task_query = " ".join(args.task) if args.task else None
+        
+        if not task_query:
+            print("❌ No task provided. Usage: sense 'Your task here'")
+            return
+
+        # Run the async task
+        result = asyncio.run(agent.process_task(task_query))
+        
+        print("\n========================================")
+        print("   SENSE EXECUTION RESULT")
+        print("========================================")
+        print(f"📝 {result}")
+        print("========================================")
+
+    except Exception as e:
+        logger.error(f"CRITICAL FAILURE: {e}", exc_info=True)
+        print(f"💥 SYSTEM CRASH: {e}")
 
 if __name__ == "__main__":
     main()

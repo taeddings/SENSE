@@ -1,1 +1,55 @@
-\"\"\"Tier 1 Grounding: Basic Sensory Input Processing\n\nImplements ingestion and basic processing of mock sensor data into the agent framework.\n\nPart of Three-Tier Grounding System for SENSE v2.\n\"\"\"\n\nfrom typing import Dict, Any\nfrom ..plugins.interface import PluginABC\nfrom ..plugins.mock_sensor import MockSensor\n\n\nclass Tier1Grounding:\n    \"\"\"\n    Tier 1: Sensory Input\n    - Ingests raw data from sensors (mock or real)\n    - Performs basic preprocessing (noise reduction, normalization)\n    - Feeds processed data into the agent's perception module\n    \"\"\"\n    \n    def __init__(self, sensor_plugin: PluginABC = None):\n        if sensor_plugin is None:\n            self.sensor = MockSensor()\n        else:\n            self.sensor = sensor_plugin\n        self.processed_data_cache = {}\n    \n    def ingest_raw_data(self) -> Dict[str, Any]:\n        \"\"\"Ingest raw sensor data.\"\"\"\n        raw_data = self.sensor.read_data()\n        return raw_data\n    \n    def preprocess_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:\n        \"\"\"Basic preprocessing: add noise reduction, timestamp, etc.\"\"\"\n        # Simulate processing\n        processed = raw_data.copy()\n        processed['timestamp'] = '2026-01-19T20:00:00'\n        processed['noise_level'] = 0.05  # low noise for mock\n        # Simple normalization example\n        if 'value' in processed:\n            processed['normalized_value'] = (processed['value'] - 0.5) / 0.5  # example\n        return processed\n    \n    def feed_to_agent(self, processed_data: Dict[str, Any]) -> None:\n        \"\"\"Feed processed data to agent framework (placeholder for integration).\"\"\"\n        # In full implementation, this would update agent's state or observation\n        print(f\"Feeding to agent: {processed_data}\")\n        self.processed_data_cache.update(processed_data)\n    \n    def run_cycle(self) -> Dict[str, Any]:\n        \"\"\"Run one cycle of Tier 1: ingest -> process -> feed.\"\"\"\n        raw = self.ingest_raw_data()\n        processed = self.preprocess_data(raw)\n        self.feed_to_agent(processed)\n        return processed
+"""Tier 1 Grounding: Basic Sensory Input Processing
+
+Implements ingestion and basic processing of mock sensor data into the agent framework.
+
+Part of Three-Tier Grounding System for SENSE v2.
+"""
+
+from typing import Dict, Any
+from ..plugins.interface import PluginABC
+from ..plugins.mock_sensor import MockSensor
+
+
+class Tier1Grounding:
+    """
+    Tier 1: Sensory Input
+    - Ingests raw data from sensors (mock or real)
+    - Performs basic preprocessing (noise reduction, normalization)
+    - Feeds processed data into the agent's perception module
+    """
+
+    def __init__(self, sensor_plugin: PluginABC = None):
+        if sensor_plugin is None:
+            self.sensor = MockSensor()
+        else:
+            self.sensor = sensor_plugin
+        self.processed_data_cache = {}
+
+    def ingest_raw_data(self) -> Dict[str, Any]:
+        """Ingest raw sensor data."""
+        raw_data = self.sensor.read_data()
+        return raw_data
+
+    def preprocess_data(self, raw_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Basic preprocessing: add noise reduction, timestamp, etc."""
+        # Simulate processing
+        processed = raw_data.copy()
+        processed['timestamp'] = '2026-01-19T20:00:00'
+        processed['noise_level'] = 0.05  # low noise for mock
+        # Simple normalization example
+        if 'value' in processed:
+            processed['normalized_value'] = (processed['value'] - 0.5) / 0.5  # example
+        return processed
+
+    def feed_to_agent(self, processed_data: Dict[str, Any]) -> None:
+        """Feed processed data to agent framework (placeholder for integration)."""
+        # In full implementation, this would update agent's state or observation
+        print(f"Feeding to agent: {processed_data}")
+        self.processed_data_cache.update(processed_data)
+
+    def run_cycle(self) -> Dict[str, Any]:
+        """Run one cycle of Tier 1: ingest -> process -> feed."""
+        raw = self.ingest_raw_data()
+        processed = self.preprocess_data(raw)
+        self.feed_to_agent(processed)
+        return processed
