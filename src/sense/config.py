@@ -23,6 +23,28 @@ system_profile = _config_data.get("system_profile", "mobile_termux")
 ENABLE_HARVESTED_TOOLS = _config_data.get("ENABLE_HARVESTED_TOOLS", True)
 ENABLE_VISION = _config_data.get("ENABLE_VISION", False)
 
+# Intelligence Layer Settings (v4.0)
+INTELLIGENCE_ENABLED = _config_data.get("intelligence", {}).get("enabled", True)
+INTELLIGENCE_CONFIG = _config_data.get("intelligence", {
+    "uncertainty": {
+        "threshold": 0.6,
+        "max_clarification_attempts": 2
+    },
+    "knowledge": {
+        "vector_dimension": 384,
+        "max_context_tokens": 500,
+        "use_faiss": True
+    },
+    "preferences": {
+        "enabled": True,
+        "decay_days": 30
+    },
+    "metacognition": {
+        "trace_enabled": True,
+        "log_level": "info"
+    }
+})
+
 # Memory Settings
 MEMORY_BACKEND = _config_data.get("MEMORY_BACKEND", "native_engram")
 
@@ -30,3 +52,5 @@ MEMORY_BACKEND = _config_data.get("MEMORY_BACKEND", "native_engram")
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY") or "a-very-secret-key"
     SYSTEM_PROFILE = system_profile
+    INTELLIGENCE_ENABLED = INTELLIGENCE_ENABLED
+    INTELLIGENCE_CONFIG = INTELLIGENCE_CONFIG

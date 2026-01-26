@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] - 2026-01-26
+
+### 🧠 Robust Intelligence - Human Alignment & Metacognition
+
+**Status:** Stable Production Release
+**Focus:** Uncertainty, Knowledge RAG, Preference Learning, Metacognition
+
+SENSE v4.0 represents a paradigm shift from pure autonomy to **Robust Intelligence**. The system is now self-aware of its own uncertainty, learns from user feedback, and grounds its reasoning in retrieved knowledge.
+
+### Added
+
+#### Intelligence Layer (`src/sense/intelligence/`)
+- **Uncertainty Detection** (`uncertainty.py`):
+  - Multi-signal analysis: Linguistic hedging, logprobs (if avail), response patterns.
+  - Scores responses (0.0-1.0) and flags ambiguity.
+  - Triggers clarification for low-confidence tasks.
+- **Knowledge RAG** (`knowledge.py`):
+  - FAISS-backed vector store with graceful Numpy fallback.
+  - Context enrichment for system prompts.
+  - Semantic search for facts and documentation.
+- **Preference Learning** (`preferences.py`):
+  - Bayesian preference model learns from feedback (positive/negative/correction).
+  - Persists preferences to OS-agnostic storage.
+  - Injects personalized hints into prompts.
+- **Metacognition** (`metacognition.py`):
+  - Tracks reasoning traces (steps, confidence, quality).
+  - Evaluates coherence, completeness, and efficiency.
+  - Detects reasoning failures and loops.
+- **Integration Layer** (`integration.py`):
+  - Unified interface wrapping the `ReasoningOrchestrator`.
+  - Handles pre-processing (enrichment) and post-processing (learning).
+
+#### Configuration
+- **New `intelligence` section** in `config.yaml` / `config.py`.
+- Toggles for all new features.
+- Configurable thresholds for uncertainty and RAG.
+
+### Changed
+
+#### ReasoningOrchestrator (`src/sense/core/reasoning_orchestrator.py`)
+- **Integration**: Initializes `IntelligenceLayer` if enabled.
+- **Pre-processing**: Calls `intelligence.preprocess()` to check ambiguity and retrieve context.
+- **Context Injection**: Enriches system prompts with Knowledge Context and Preference Hints.
+- **Post-processing**: Calls `intelligence.postprocess()` to learn from interaction and log traces.
+- **Prompt Sanitization**: Fixed invalid escape sequences in regex patterns.
+
+### Security
+- **Input Sanitization**: hardened against prompt injection (from v3.4).
+- **Rate Limiting**: API protection active (from v3.4).
+
+### Performance
+- **Lazy Loading**: FAISS and heavy libs load only when needed.
+- **Graceful Degradation**: System functions even if Intelligence Layer fails or dependencies missing.
+
+---
+
 ## [3.4.0] - 2026-01-26
 
 ### 🚀 AERL Framework - Production Hardening & Documentation
