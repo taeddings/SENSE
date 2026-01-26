@@ -1,84 +1,31 @@
-# Python
+# --- SENSE PERSONAL FIREWALL ---
+# Strictly exclude all memory, logs, and private data.
+
+# 1. Python Artifacts
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
+*.py[cod]
+*$py.class
 venv/
+env/
+
+# 2. Local Configuration & Keys
 .env
-.venv
-pip-log.txt
-pip-delete-this-arg.txt
+config.local.py
+secrets.json
 
-# IDEs
-.vscode/
-.idea/
+# 3. SENSE Personal Data (CRITICAL)
+src/sense/data/genetic_db.json
+src/sense/data/episodic_engrams.json
+src/sense/data/knowledge_profile.json
+src/sense/data/genes.json
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-
-# Logs and databases
+# 4. Runtime Logs & Outputs
 *.log
-*.sqlite3
-*.db
+sense_search_*.txt
+debug_*.txt
+vision_*.jpg
 
-# OS generated files
+# 5. OS Specifics
 .DS_Store
 Thumbs.db
-
-# Conductor specific
-conductor/archive/
-
-conductor/
-.github/
-*_out.txt
-*.sh
-verify_*.py
-run_protocol_tests.py
-__pycache__/
-*.log
-.DS_Store
-
--help
-AUDIT.md
-pytest_out.txt
-requirements.txt
-test_out.txt
-ARCH.md
-
-# --- Restructuring Rules ---
-/_Marketing/
-/_Presentations/
-/_Reference_Lib/
-
-# Markdown (Exclude non-code markdown)
-*.md
-!README.md
-!CONTRIBUTING.md
-!CHANGELOG.md
-
-# Design/Media
-*.psd
-*.ai
-*.indd
-*.fig
-*.sketch
-*.raw
-*.mp4
-*.mov
-
-# Documents
-*.pptx
-*.key
-*.docx
-*.pdf
-*.xlsx
-
-# System/Config
-.env.local.grok/
-.grok
-DIRECTIVE_UNIVERSAL.md
+.termux/

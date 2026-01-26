@@ -1,26 +1,18 @@
-bcrypt==5.0.0
-Flask==3.0.0
-deap>=1.4.0  # For evolutionary algorithms in PopulationManager
-RestrictedPython>=8.0  # For safe reasoning code execution in ReasoningOrchestrator
+# --- SENSE v3.3 Universal Dependencies ---
 
-# Agent0 integration dependencies (enhanced rewards)
-nltk>=3.8.0  # For BLEU score calculation in diversity penalty
-scikit-learn>=1.3.0  # For agglomerative clustering in diversity penalty
+# 1. THE BRAIN (LLM Interface)
+openai>=1.0.0
+httpx>=0.24.0
+python-dotenv>=1.0.0
 
-# agent-zero integration dependencies (multi-session terminal)
-paramiko>=3.3.0  # Optional: For SSH session support
+# 2. THE EYES (Search & Parsing)
+# We use ddgr because it is pure Python and runs on Android/Termux without compilation errors.
+ddgr>=2.0.0
+beautifulsoup4>=4.12.0
 
-# Memory-aware dependencies
-psutil>=5.9.0  # System resource monitoring
-torch>=2.0.0  # PyTorch for tensor operations
-numpy>=1.24.0  # Numerical operations
+# 3. THE HANDS (Media Tools)
+# yt-dlp is frequently updated; we enforce a minimum robust version.
+yt-dlp>=2025.01.01
 
-# Protocol dependencies (optional: JSON fallback if not installed)
-msgpack>=1.0.0  # MessagePack serialization for binary protocol
-
-# Optional: Triton for CUDA/ROCm acceleration (not required)
-# triton>=2.1.0  # Install separately if CUDA available
-
-# Testing dependencies
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
+# 4. THE MEMORY (Future-Proofing for Genetic Evolution)
+numpy>=1.24.0

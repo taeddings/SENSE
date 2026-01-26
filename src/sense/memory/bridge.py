@@ -1,54 +1,82 @@
-import logging
+import json
+import os
 import time
-from sense.config import MEMORY_BACKEND
-from sense.core.config import EngramConfig
+import logging
+import sys
+
+# Law 3: OS-Agnostic Workspace
+def get_memory_path():
+    """
+    Detects the environment and returns a valid writable path.
+    """
+    # 1. Detect Android/Termux
+    if hasattr(sys, 'getandroidapilevel') or os.path.exists('/data/data/com.termux'):
+        base = "/sdcard/Download/SENSE_Data"
+    # 2. Detect Windows
+    elif os.name == 'nt':
+        base = os.path.join(os.path.expanduser("~"), "Documents", "SENSE_Data")
+    # 3. Detect Linux/Mac
+    else:
+        base = os.path.join(os.path.expanduser("~"), "SENSE_Data")
+    
+    return os.path.join(base, "episodic_engrams.json")
+
+MEMORY_FILE = get_memory_path()
 
 class UniversalMemory:
     def __init__(self):
-        self.backend = None
-        self.mode = "NATIVE"
         self.logger = logging.getLogger("UniversalMemory")
+        self.engrams = []
+        self._load_memory()
 
-        if MEMORY_BACKEND == "transplant_agent_zero":
+    def _load_memory(self):
+        if os.path.exists(MEMORY_FILE):
             try:
-                # Attempt to load the Heavy Transplant
-                from sense.memory.transplant import memory as az_memory
-                self.backend = az_memory
-                self.mode = "AGENT_ZERO_FAISS"
-                self.logger.info("✅ Agent Zero Memory (FAISS) loaded successfully.")
-            except ImportError as e:
-                self.logger.warning(f"⚠️ Heavy Memory Load Failed ({e}). Falling back to Native Engram.")
-                self.mode = "NATIVE_FALLBACK"
+                with open(MEMORY_FILE, 'r') as f:
+                    self.engrams = json.load(f)
+                self.logger.info(f"✅ Native Engram Memory loaded ({len(self.engrams)} engrams).")
             except Exception as e:
-                self.logger.warning(f"⚠️ Heavy Memory Error ({e}). Falling back to Native Engram.")
-                self.mode = "NATIVE_FALLBACK"
-
-        if self.mode == "NATIVE" or self.mode == "NATIVE_FALLBACK":
-            # Load SENSE's original lightweight memory
-            from sense.engram.manager import EngramMemoryManager
-            self.backend = EngramMemoryManager(EngramConfig())
-            self.logger.info("✅ Native Engram Memory loaded.")
-    
-    def add(self, content: str):
-        if self.mode == "AGENT_ZERO_FAISS":
-            # Mapping to AZ method (Partial implementation, requires async context)
-            # In a real scenario, we'd need to properly instantiate the Memory class with context
-            self.logger.info(f"AZ Memory Add: {content[:20]}...")
-            return True
+                self.logger.error(f"❌ Memory Corruption: {e}")
+                self.engrams = []
         else:
-            # Mapping to SENSE method
-            entry = {
-                "content": content,
-                "age": 0,
-                "relevance": 1.0,
-                "timestamp": time.time()
-            }
-            return self.backend.store_memory(entry)
+            self.logger.info(f"🆕 Initializing Memory Cortex at: {MEMORY_FILE}")
+            self._ensure_dir()
 
-    def query(self, text: str):
-        if self.mode == "AGENT_ZERO_FAISS":
-            # Mapping to AZ method
-            self.logger.info(f"AZ Memory Query: {text}")
-            return []
-        else:
-            return self.backend.retrieve_memories(text)
+    def _ensure_dir(self):
+        directory = os.path.dirname(MEMORY_FILE)
+        if not os.path.exists(directory):
+            try:
+                os.makedirs(directory, exist_ok=True)
+            except:
+                pass
+
+    def save_engram(self, content, tags=None):
+        if not content: return
+        engram = {
+            "id": abs(hash(content + str(time.time()))),
+            "timestamp": time.time(),
+            "content": content,
+            "tags": tags or []
+        }
+        self.engrams.append(engram)
+        try:
+            self._ensure_dir()
+            with open(MEMORY_FILE, 'w') as f:
+                json.dump(self.engrams, f, indent=2)
+            self.logger.info(f"💾 Memory Saved: '{content[:30]}...'")
+        except Exception as e:
+            self.logger.error(f"❌ Save Failed: {e}")
+
+    def recall(self, query):
+        if not query: return []
+        query_words = set(query.lower().split())
+        hits = []
+        for engram in self.engrams:
+            content_lower = engram['content'].lower()
+            score = sum(1 for w in query_words if w in content_lower)
+            age_hours = (time.time() - engram['timestamp']) / 3600
+            if age_hours < 1: score += 0.5
+            if score > 0:
+                hits.append((score, engram['content']))
+        hits.sort(key=lambda x: x[0], reverse=True)
+        return [h[1] for h in hits[:3]]

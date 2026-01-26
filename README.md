@@ -1,108 +1,50 @@
-# 🧠 SENSE - Self-Evolving Network & Semantic Engine
+# SENSE (Smartphone Evolutionary Neural System Engine) v3.4
 
-**Version:** 3.1.0 (Universal Architecture)
-**Author:** Todd Eddings
-**Status:** Production-Ready (Mobile/Desktop/Cloud)
-**Last Updated:** 2026-01-24
+> **"A Universal Cybernetic Kernel for Local AI"**
 
----
+SENSE is a fully autonomous, local-first agent framework designed to run universally on **Android (Termux), Linux, macOS, and Windows**. It transforms any device into a self-evolving AI assistant that learns from experience, remembers its user, and seeks truth using a "Resonance Engine."
 
-## Overview
+## 🧠 Core Architecture
 
-SENSE is a **Universal AI Architecture** designed to run anywhere. It transforms any LLM—from a 1.2B model on an Android phone to GPT-4 in the cloud—into a grounded, autonomous agent.
+* **Universal Core:** Automatically detects the OS (Android/Linux/Win) and adapts file paths and system calls accordingly.
+* **The Brain (Orchestrator):** A state-aware reasoning engine that dynamically switches between "Hunter" (Search) and "Analyst" (Synthesis) modes.
+* **The Instincts (Genetic Memory):** Reinforcement learning that remembers *how* to use tools.
+* **The Cortex (Episodic Memory):** A persistent JSON memory system that stores user context in your documents folder.
+* **The Eyes (Grok-Mode):** A "Deep-Net" search engine that prioritizes high-resonance sources like Grokipedia, GitHub, and Arxiv.
 
-**Key Features:**
-- 📱 **Universal:** Runs on Termux (Android), Linux, Mac, and Windows without code changes.
-- 🔌 **Hot-Swappable:** Switch between Local LLMs and Cloud APIs instantly.
-- 🛡️ **Safe:** Strict CLI isolation for tools and "Bridge" for OS commands.
-- 🧠 **Adaptive:** Reasoning engine adapts to the model's intelligence (Smart Router + Polyglot Parsing).
-- 🧬 **Self-Evolving:** Uses genetic algorithms (GRPO) to improve over time.
+## 🛠️ Tech Stack
 
----
+* **Language:** Python 3.x (Universal)
+* **Backend:** OpenAI-Compatible Local Server (llama.cpp / Ollama / LM Studio)
+* **Tools:** Dynamic "Harvesting" system (DuckDuckGo, YouTube-DL)
 
-## 🚀 Quick Start
+## 🚀 Installation
 
-### Installation
+1.  **Clone the Repo:**
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/SENSE.git
+    cd SENSE
+    ```
 
-```bash
-# Clone repository
-git clone https://github.com/taeddings/SENSE.git
-cd SENSE
+2.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    # (On Termux only: pkg install termux-api)
+    ```
 
-# Install dependencies
-pip install -e .
+3.  **Run SENSE:**
+    ```bash
+    # The system will auto-detect your OS and configure paths.
+    sense "What is the Linux Kernel release date?"
+    ```
 
-# Verify installation
-python -m sense.main --task "Hello SENSE"
-```
+## 🛡️ Privacy & Security
 
-### Basic Usage
-
-```bash
-# Solve a single task using the active profile
-python -m sense.main --task "Download the video https://example.com/video"
-
-# Override LLM settings on the fly
-python -m sense.main --url http://192.168.1.5:1234/v1 --model "llama-3-70b" --task "Explain quantum physics"
-```
-
----
-
-## 🏗️ Universal Architecture
-
-SENSE v3.1 introduces a unified architecture with "Bridges" that adapt to the host environment:
-
-*   **Universal Memory Bridge:** Automatically uses high-performance FAISS vector storage on powerful machines, but falls back to lightweight Engram storage on mobile devices.
-*   **Optic Nerve (Vision):** Lazy-loads heavy vision libraries (`torch`, `transformers`) only when needed, preventing RAM crashes on constrained devices.
-*   **Tool Adapter:** Safely executes harvested tools (like `yt_download`) in isolated subprocesses, filtering noise for smaller models.
+SENSE is designed for **Total Privacy**.
+* **Android:** Data stored in `/sdcard/Download/SENSE_Data`.
+* **PC/Mac:** Data stored in `~/Documents/SENSE_Data` (or equivalent).
+* No data is ever sent to the cloud.
+* Personal data files are Git-Ignored by default.
 
 ---
-
-## ⚙️ Configuration
-
-SENSE uses `config.yaml` profiles to manage environments.
-
-```yaml
-# config.yaml
-system_profile: "mobile_termux"
-
-llm_profiles:
-  termux_local:
-    base_url: "http://127.0.0.1:8080/v1"
-    model_name: "lfm2.5-1.2b-thinking"
-  
-  desktop_local:
-    base_url: "http://192.168.1.5:1234/v1"
-    model_name: "llama-3-70b"
-  
-  openai_cloud:
-    provider: "openai"
-    api_key: "${OPENAI_API_KEY}"
-```
-
----
-
-## 🗺️ Roadmap
-
-### Completed (v3.1)
-- ✅ **Universal Architecture:** Unified codebase for all platforms.
-- ✅ **Subsystem Bridges:** Memory & Vision bridges for mobile stability.
-- ✅ **Tool Harvesting:** Integration of Agent Zero instruments.
-- ✅ **Adaptive Reasoning:** Smart Router & Polyglot Regex.
-
-### Planned
-- **v4.0:** Human Alignment & Knowledge
-- **v5.0:** Tool Ecosystem (Marketplace)
-- **v6.0:** Meta-Learning (Curriculum Evolution)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## 📝 License
-
-MIT License - See [LICENSE](LICENSE) file.
+*Built by Todd Eddings.*
