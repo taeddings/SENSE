@@ -79,4 +79,4 @@ ARCH.md
 *.xlsx
 
 # System/Config
-.env.local
+.env.local.grok/
