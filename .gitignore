@@ -2,43 +2,50 @@
 # SENSE REPOSITORY FIREWALL
 # ====================================
 
-# 1. GLOBAL BLOCK (Deny All by Default)
-*.md
-*.txt
-*.json
-*.log
-*.xml
-
-# 2. ALLOWLIST (Explicitly Allow Public Files)
-!README.md
-!requirements.txt
-!LICENSE
-
-# 3. PYTHON ARTIFACTS
+# 1. PYTHON & SYSTEM ARTIFACTS
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 env/
 .pytest_cache/
+.DS_Store
+Thumbs.db
+.termux/
 
-# 4. SENSE INTERNAL DATA (Strictly Private)
+# 2. LOGS & OUTPUTS
+*.log
+*.txt
+*.xml
+*.csv
+*.db
+debug_*.json
+sense_search_*
+vision_*
+
+# 3. SENSE PRIVATE DATA
+# Block the memory cores and user config
 src/sense/data/
+src/sense/config/
 config.local.py
 .env
 secrets.json
 
-# 5. NOISE FILTERS (Explicitly Block Keywords)
-*directive*
-*context*
-*prompt*
-*chat*
-*gemini*
-*claude*
-*gpt*
-*temp*
+# 4. PERSONAL WORKSPACE EXCLUSIONS (CRITICAL)
+# These folders must NEVER be committed
+_Reference_Lib/
+_archive/
+_backups/
+legacy/
+legacy_sense_v1/
+harvested_raw/
+backups/
+scraps/
+temp/
+tmp/
 
-# 6. SYSTEM FILES
-.DS_Store
-Thumbs.db
-.termux/
+# 5. EXCEPTION ALLOWLIST
+# Ensure these are always tracked
+!README.md
+!requirements.txt
+!.gitignore
