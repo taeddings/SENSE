@@ -1,8 +1,0 @@
-{
-  "backend": "local",
-  "model_name": "LFM2.5-1.2B-Thinking",
-  "api_base": "http://localhost:8080/v1",
-  "meta_learning_enabled": true,
-  "auto_discover_tools": true,
-  "evolution_interval": 5
-}

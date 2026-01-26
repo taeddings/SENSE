@@ -1,31 +1,44 @@
-# --- SENSE PERSONAL FIREWALL ---
-# Strictly exclude all memory, logs, and private data.
+# ====================================
+# SENSE REPOSITORY FIREWALL
+# ====================================
 
-# 1. Python Artifacts
+# 1. GLOBAL BLOCK (Deny All by Default)
+*.md
+*.txt
+*.json
+*.log
+*.xml
+
+# 2. ALLOWLIST (Explicitly Allow Public Files)
+!README.md
+!requirements.txt
+!LICENSE
+
+# 3. PYTHON ARTIFACTS
 __pycache__/
 *.py[cod]
 *$py.class
 venv/
 env/
+.pytest_cache/
 
-# 2. Local Configuration & Keys
-.env
+# 4. SENSE INTERNAL DATA (Strictly Private)
+src/sense/data/
 config.local.py
+.env
 secrets.json
 
-# 3. SENSE Personal Data (CRITICAL)
-src/sense/data/genetic_db.json
-src/sense/data/episodic_engrams.json
-src/sense/data/knowledge_profile.json
-src/sense/data/genes.json
+# 5. NOISE FILTERS (Explicitly Block Keywords)
+*directive*
+*context*
+*prompt*
+*chat*
+*gemini*
+*claude*
+*gpt*
+*temp*
 
-# 4. Runtime Logs & Outputs
-*.log
-sense_search_*.txt
-debug_*.txt
-vision_*.jpg
-
-# 5. OS Specifics
+# 6. SYSTEM FILES
 .DS_Store
 Thumbs.db
 .termux/

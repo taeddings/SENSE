@@ -1,16 +1,25 @@
-# SENSE (Smartphone Evolutionary Neural System Engine) v3.4
+# SENSE (Self-Evolving Neural Stabilization Engine) v3.4
 
-> **"A Universal Cybernetic Kernel for Local AI"**
+> **"Combating Data Shift through Selective Evolutionary Reinforcement Learning"**
 
-SENSE is a fully autonomous, local-first agent framework designed to run universally on **Android (Termux), Linux, macOS, and Windows**. It transforms any device into a self-evolving AI assistant that learns from experience, remembers its user, and seeks truth using a "Resonance Engine."
+SENSE is an AI framework for **adaptive model evolution**, designed to prevent performance drop-out and extend model lifetime in non-stationary environments.
 
-## 🧠 Core Architecture
+By merging **Evolutionary Reinforcement Learning (EvoRL)** with **Online Learning**, SENSE continuously optimizes policies through **Selective Evolution** and **Genetic Mutation**, allowing it to maintain high performance without retraining from scratch.
 
-* **Universal Core:** Automatically detects the OS (Android/Linux/Win) and adapts file paths and system calls accordingly.
-* **The Brain (Orchestrator):** A state-aware reasoning engine that dynamically switches between "Hunter" (Search) and "Analyst" (Synthesis) modes.
-* **The Instincts (Genetic Memory):** Reinforcement learning that remembers *how* to use tools.
-* **The Cortex (Episodic Memory):** A persistent JSON memory system that stores user context in your documents folder.
-* **The Eyes (Grok-Mode):** A "Deep-Net" search engine that prioritizes high-resonance sources like Grokipedia, GitHub, and Arxiv.
+## 🔬 Scientific Core: Adaptive Evolutionary RL (AERL)
+
+SENSE addresses the limitations of standard algorithms by treating tool-usage patterns as "Genes" that undergo natural selection:
+
+* **Selective Evolution:** The framework utilizes a population-based approach where successful behaviors (high "Resonance" scores) are selected and reinforced in the `GeneticMemory`.
+* **Genetic Mutation & Adaptation:** When environmental data shifts (e.g., API changes, new information), the system explores new pathways (Mutation), dynamically introducing gradient information to refine the population.
+* **Neural Stabilization:** By coupling these evolutionary strategies with a local Large Language Model (LLM), SENSE stabilizes performance against "data drift," extending the useful life of the AI model.
+
+## 🧠 System Architecture
+
+* **Universal Core:** OS-Agnostic architecture (Android/Linux/Windows) that adapts file paths and system calls to the host environment.
+* **The Gene Pool (Genetic Memory):** Implements the selective pressure. It reinforces successful "genes" (tool patterns) and prunes those that lead to hallucinations or errors.
+* **The Cortex (Online Learning):** A persistent episodic memory that captures user context, allowing the system to adapt to new distributions in real-time.
+* **The Resonance Engine (Grok-Mode):** A "Deep-Net" filter that acts as the fitness function for selection, prioritizing high-fidelity data sources (Grokipedia, Arxiv, GitHub).
 
 ## 🛠️ Tech Stack
 
@@ -29,22 +38,19 @@ SENSE is a fully autonomous, local-first agent framework designed to run univers
 2.  **Install Dependencies:**
     ```bash
     pip install -r requirements.txt
-    # (On Termux only: pkg install termux-api)
     ```
 
-3.  **Run SENSE:**
+3.  **Initiate Evolution:**
     ```bash
-    # The system will auto-detect your OS and configure paths.
-    sense "What is the Linux Kernel release date?"
+    # The system will auto-detect OS and begin adaptive learning.
+    sense "Analyze the latest Linux Kernel data."
     ```
 
 ## 🛡️ Privacy & Security
 
-SENSE is designed for **Total Privacy**.
-* **Android:** Data stored in `/sdcard/Download/SENSE_Data`.
-* **PC/Mac:** Data stored in `~/Documents/SENSE_Data` (or equivalent).
-* No data is ever sent to the cloud.
-* Personal data files are Git-Ignored by default.
+SENSE operates entirely locally to ensure the integrity of the evolutionary process.
+* **Data Storage:** Local-only JSON Engrams (OS-Agnostic paths).
+* **Firewall:** Strict `.gitignore` policy prevents leakage of learned genes and memories.
 
 ---
 *Built by Todd Eddings.*

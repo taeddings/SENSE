@@ -1,3 +1,0 @@
-[console_scripts]
-sense = sense.main:main
-sense-dashboard = sense.dashboard_cli:main
