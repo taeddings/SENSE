@@ -80,3 +80,4 @@ ARCH.md
 
 # System/Config
 .env.local.grok/
+.grok
