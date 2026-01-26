@@ -1,37 +1,42 @@
-# SENSE (Self-Evolving Neural Stabilization Engine) v3.4
+# SENSE (Self-Evolving Neural Stabilization Engine) v4.0
 
-> **"Combating Data Shift through Selective Evolutionary Reinforcement Learning"**
+> **"Robust Intelligence: From Autonomy to Self-Awareness"**
 
-SENSE is an AI framework for **adaptive model evolution**, designed to prevent performance drop-out and extend model lifetime in non-stationary environments.
+SENSE is an AI framework for **adaptive model evolution** and **metacognitive reasoning**. It transforms standard LLMs into self-aware agents that know when they don't know, learn from user feedback, and ground their reasoning in verified knowledge.
 
-By merging **Evolutionary Reinforcement Learning (EvoRL)** with **Online Learning**, SENSE continuously optimizes policies through **Selective Evolution** and **Genetic Mutation**, allowing it to maintain high performance without retraining from scratch.
+By merging **Evolutionary Reinforcement Learning (AERL)** with a new **Robust Intelligence Layer**, SENSE continuously optimizes policies while maintaining high reliability through uncertainty detection and semantic retrieval.
 
-## 🔬 Scientific Core: Adaptive Evolutionary RL (AERL)
+## 🧠 Core Capabilities (v4.0)
 
-SENSE addresses the limitations of standard algorithms by treating tool-usage patterns as "Genes" that undergo natural selection:
+### 1. Robust Intelligence Layer
+SENSE v4.0 introduces a metacognitive wrapper around the core reasoning engine:
+*   **Uncertainty Detection:** Multi-signal analysis (linguistic hedging, logprobs) detects ambiguity and low confidence, triggering clarification loops instead of hallucinations.
+*   **Knowledge RAG:** A vector-backed Retrieval-Augmented Generation system that enriches prompts with semantic context and facts, falling back to Numpy if FAISS is unavailable.
+*   **Preference Learning:** A Bayesian model that learns from user feedback (corrections, positive reinforcement) to personalize future responses.
+*   **Metacognition:** Self-monitoring of reasoning traces to evaluate coherence, completeness, and efficiency in real-time.
 
-* **Selective Evolution:** The framework utilizes a population-based approach where successful behaviors (high "Resonance" scores) are selected and reinforced in the `GeneticMemory`.
-* **Genetic Mutation & Adaptation:** When environmental data shifts (e.g., API changes, new information), the system explores new pathways (Mutation), dynamically introducing gradient information to refine the population.
-* **Neural Stabilization:** By coupling these evolutionary strategies with a local Large Language Model (LLM), SENSE stabilizes performance against "data drift," extending the useful life of the AI model.
+### 2. Adaptive Evolutionary RL (AERL)
+SENSE treats tool-usage patterns as "Genes" that undergo natural selection:
+*   **Selective Evolution:** Successful behavioral patterns are reinforced in `GeneticMemory`.
+*   **Neural Stabilization:** Prevents "data drift" by anchoring reasoning to successful historical outcomes.
 
-## 🧠 System Architecture
-
-* **Universal Core:** OS-Agnostic architecture (Android/Linux/Windows) that adapts file paths and system calls to the host environment.
-* **The Gene Pool (Genetic Memory):** Implements the selective pressure. It reinforces successful "genes" (tool patterns) and prunes those that lead to hallucinations or errors.
-* **The Cortex (Online Learning):** A persistent episodic memory that captures user context, allowing the system to adapt to new distributions in real-time.
-* **The Resonance Engine (Grok-Mode):** A "Deep-Net" filter that acts as the fitness function for selection, prioritizing high-fidelity data sources (Grokipedia, Arxiv, GitHub).
+### 3. Universal Architecture
+*   **OS-Agnostic:** Runs seamlessly on Android (Termux), Linux, macOS, and Windows.
+*   **Safe Execution:** Sandbox isolation for tools and strict input sanitization.
+*   **Temporal Grounding:** "Reality Override" protocol ensures the model is aware of the current date and time (2026).
 
 ## 🛠️ Tech Stack
 
-* **Language:** Python 3.x (Universal)
-* **Backend:** OpenAI-Compatible Local Server (llama.cpp / Ollama / LM Studio)
-* **Tools:** Dynamic "Harvesting" system (DuckDuckGo, YouTube-DL)
+*   **Language:** Python 3.12+
+*   **Core:** OpenAI-Compatible Client (Local LLMs via Ollama / LM Studio)
+*   **Memory:** Native JSON Engrams + Vector Embeddings
+*   **Search:** Deep-Net Resonance (DuckDuckGo optimized)
 
 ## 🚀 Installation
 
 1.  **Clone the Repo:**
     ```bash
-    git clone https://github.com/YOUR_USERNAME/SENSE.git
+    git clone https://github.com/taeddings/SENSE.git
     cd SENSE
     ```
 
@@ -40,17 +45,18 @@ SENSE addresses the limitations of standard algorithms by treating tool-usage pa
     pip install -r requirements.txt
     ```
 
-3.  **Initiate Evolution:**
+3.  **Run SENSE:**
     ```bash
-    # The system will auto-detect OS and begin adaptive learning.
-    sense "Analyze the latest Linux Kernel data."
+    # Auto-detects OS and starts the autonomous agent
+    python -m sense.main "Analyze the latest Linux Kernel data."
     ```
 
 ## 🛡️ Privacy & Security
 
-SENSE operates entirely locally to ensure the integrity of the evolutionary process.
-* **Data Storage:** Local-only JSON Engrams (OS-Agnostic paths).
-* **Firewall:** Strict `.gitignore` policy prevents leakage of learned genes and memories.
+SENSE is designed for **Local-First** operation:
+*   **Data Sovereignty:** All memories, preferences, and genes are stored locally in OS-appropriate user directories (`/sdcard` on Android, `~/Documents` on PC).
+*   **Input Sanitization:** Hardened against prompt injection attacks.
+*   **Rate Limiting:** Built-in API protection.
 
 ---
 *Built by Todd Eddings.*
