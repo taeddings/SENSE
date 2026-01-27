@@ -43,6 +43,8 @@ backups/
 scraps/
 temp/
 tmp/
+temp_wiki/
+CLAUDE.md
 
 # 5. EXCEPTION ALLOWLIST
 !README.md
